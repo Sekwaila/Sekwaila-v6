@@ -1,0 +1,793 @@
+# ============================================================
+# 🔥 SEKWAILA V6 ULTIMATE MARKET ENGINE
+# ============================================================
+
+import streamlit as st
+import pandas as pd
+import numpy as np
+import yfinance as yf
+from datetime import datetime, timedelta
+import time
+
+# ============================================================
+# PAGE CONFIG
+# ============================================================
+
+st.set_page_config(
+    page_title="SEKWAILA V6",
+    layout="wide",
+    page_icon="🔥",
+    initial_sidebar_state="collapsed"
+)
+
+# ============================================================
+# CUSTOM CSS
+# ============================================================
+
+st.markdown("""
+<style>
+
+html, body, [class*="css"] {
+    background-color: #050816;
+    color: white;
+    font-family: sans-serif;
+}
+
+.main-title {
+    font-size: 45px;
+    text-align: center;
+    font-weight: bold;
+    color: #00ff99;
+}
+
+.subtitle {
+    text-align: center;
+    color: #999;
+    margin-bottom: 30px;
+}
+
+.card {
+    background: #0b1023;
+    border-radius: 18px;
+    padding: 20px;
+    border: 1px solid #1f2a44;
+    margin-bottom: 20px;
+}
+
+.news-card {
+    background: #0a0f1f;
+    border-radius: 12px;
+    padding: 12px 15px;
+    border-left: 4px solid #00ff99;
+    margin-bottom: 8px;
+}
+
+.news-high {
+    border-left-color: #ff4444;
+}
+
+.news-medium {
+    border-left-color: #ffaa00;
+}
+
+.news-low {
+    border-left-color: #4488ff;
+}
+
+.extreme-buy {
+    background: linear-gradient(135deg,#00ff99,#00b36b);
+    color: black;
+    padding: 10px;
+    border-radius: 12px;
+    text-align: center;
+    font-weight: bold;
+    animation: pulseGreen 1s infinite;
+}
+
+.extreme-sell {
+    background: linear-gradient(135deg,#ff0000,#7a0000);
+    color: white;
+    padding: 10px;
+    border-radius: 12px;
+    text-align: center;
+    font-weight: bold;
+    animation: pulseRed 1s infinite;
+}
+
+.strong-buy {
+    background: #103b29;
+    color: #00ff99;
+    padding: 10px;
+    border-radius: 12px;
+    text-align: center;
+    font-weight: bold;
+}
+
+.strong-sell {
+    background: #4a1111;
+    color: #ff4d4d;
+    padding: 10px;
+    border-radius: 12px;
+    text-align: center;
+    font-weight: bold;
+}
+
+.buy {
+    background: #0a2a1a;
+    color: #66ff99;
+    padding: 10px;
+    border-radius: 12px;
+    text-align: center;
+    font-weight: bold;
+}
+
+.sell {
+    background: #2a0a0a;
+    color: #ff6666;
+    padding: 10px;
+    border-radius: 12px;
+    text-align: center;
+    font-weight: bold;
+}
+
+.forming {
+    background: #1e293b;
+    color: #cbd5e1;
+    padding: 10px;
+    border-radius: 12px;
+    text-align: center;
+    font-weight: bold;
+}
+
+@keyframes pulseGreen {
+    0% { box-shadow: 0 0 10px #00ff99; }
+    50% { box-shadow: 0 0 30px #00ff99; }
+    100% { box-shadow: 0 0 10px #00ff99; }
+}
+
+@keyframes pulseRed {
+    0% { box-shadow: 0 0 10px red; }
+    50% { box-shadow: 0 0 30px red; }
+    100% { box-shadow: 0 0 10px red; }
+}
+
+.tp-container {
+    display: flex;
+    justify-content: space-between;
+    gap: 5px;
+    margin: 5px 0;
+}
+
+.tp-level {
+    flex: 1;
+    padding: 5px 8px;
+    border-radius: 8px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.tp-safe {
+    background: #0a2a1a;
+    color: #66ff99;
+    border: 1px solid #00ff99;
+}
+
+.tp-medium {
+    background: #0a1a3a;
+    color: #66aaff;
+    border: 1px solid #0066ff;
+}
+
+.tp-high {
+    background: #2a0a3a;
+    color: #cc66ff;
+    border: 1px solid #9900ff;
+}
+
+.tp-extreme {
+    background: #3a0a0a;
+    color: #ff6666;
+    border: 1px solid #ff0000;
+    animation: pulseRed 1s infinite;
+}
+
+.sl-level {
+    background: #2a0a0a;
+    color: #ff4444;
+    padding: 5px 10px;
+    border-radius: 8px;
+    border: 1px solid #ff0000;
+    display: inline-block;
+    font-weight: bold;
+}
+
+.time-display {
+    font-size: 24px;
+    font-weight: bold;
+    color: #00ff99;
+    text-align: center;
+    padding: 10px;
+    background: #0b1023;
+    border-radius: 12px;
+    border: 1px solid #1f2a44;
+}
+
+.htf-bullish {
+    background: #0a2a1a;
+    color: #00ff99;
+    padding: 4px 12px;
+    border-radius: 8px;
+    border: 1px solid #00ff99;
+    display: inline-block;
+}
+
+.htf-bearish {
+    background: #2a0a0a;
+    color: #ff4444;
+    padding: 4px 12px;
+    border-radius: 8px;
+    border: 1px solid #ff4444;
+    display: inline-block;
+}
+
+.htf-neutral {
+    background: #1a1a2a;
+    color: #888;
+    padding: 4px 12px;
+    border-radius: 8px;
+    border: 1px solid #444;
+    display: inline-block;
+}
+
+.aligned {
+    color: #00ff99;
+    font-weight: bold;
+}
+
+.misaligned {
+    color: #ff4444;
+    font-weight: bold;
+}
+
+.session-tag {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.session-asian {
+    background: #1a2a3a;
+    color: #66aaff;
+    border: 1px solid #4488ff;
+}
+
+.session-london {
+    background: #2a1a3a;
+    color: #cc66ff;
+    border: 1px solid #9900ff;
+}
+
+.session-overlap {
+    background: #2a2a1a;
+    color: #ffcc44;
+    border: 1px solid #ffaa00;
+}
+
+.session-ny {
+    background: #2a1a1a;
+    color: #ff6666;
+    border: 1px solid #ff4444;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
+# ============================================================
+# HEADER
+# ============================================================
+
+st.markdown('<div class="main-title">🔥 SEKWAILA V6</div>', unsafe_allow_html=True)
+st.markdown('<div class="subtitle">Ultimate DXY Compass Intelligence Engine</div>', unsafe_allow_html=True)
+
+# ============================================================
+# SA TIME DISPLAY
+# ============================================================
+
+sa_time = datetime.utcnow() + timedelta(hours=2)
+sa_time_str = sa_time.strftime("%Y-%m-%d %H:%M:%S")
+
+col_time1, col_time2, col_time3 = st.columns([1, 2, 1])
+with col_time2:
+    st.markdown(f"""
+    <div class="time-display">
+        🕐 SA TIME: {sa_time_str}
+    </div>
+    """, unsafe_allow_html=True)
+
+# ============================================================
+# SESSION ENGINE
+# ============================================================
+
+hour = datetime.utcnow().hour
+
+if 0 <= hour < 7:
+    session = "ASIAN SESSION"
+    session_class = "session-asian"
+    session_emoji = "🌏"
+elif 7 <= hour < 13:
+    session = "LONDON SESSION"
+    session_class = "session-london"
+    session_emoji = "🇬🇧"
+elif 13 <= hour < 17:
+    session = "LONDON-NY OVERLAP"
+    session_class = "session-overlap"
+    session_emoji = "⚡"
+else:
+    session = "NEW YORK SESSION"
+    session_class = "session-ny"
+    session_emoji = "🗽"
+
+st.markdown(f"""
+<div style="text-align: center; margin: 10px 0;">
+    <span class="session-tag {session_class}">
+        {session_emoji} {session}
+    </span>
+</div>
+""", unsafe_allow_html=True)
+
+# ============================================================
+# PAIRS
+# ============================================================
+
+pairs = {
+    "XAUUSD": "GC=F",
+    "EURUSD": "EURUSD=X",
+    "USDJPY": "JPY=X",
+    "BTCUSD": "BTC-USD",
+    "GBPUSD": "GBPUSD=X",
+    "USTECH": "TECH=X",
+    "US30": "^DJI",
+    "DXY": "DX-Y.NYB"
+}
+
+# ============================================================
+# DATA FUNCTION
+# ============================================================
+
+@st.cache_data(ttl=60)
+
+def get_data(symbol):
+
+    df = yf.download(
+        symbol,
+        period="5d",
+        interval="15m",
+        progress=False
+    )
+
+    if df.empty:
+        return None
+
+    return df
+
+# ============================================================
+# RSI
+# ============================================================
+
+def calculate_rsi(series, period=14):
+
+    delta = series.diff()
+
+    gain = delta.where(delta > 0, 0)
+    loss = -delta.where(delta < 0, 0)
+
+    avg_gain = gain.rolling(period).mean()
+    avg_loss = loss.rolling(period).mean()
+
+    rs = avg_gain / avg_loss
+
+    rsi = 100 - (100 / (1 + rs))
+
+    return rsi
+
+# ============================================================
+# 🕵️ HIDDEN ENGINE FUNCTIONS
+# ============================================================
+
+def detect_order_blocks(df, lookback=20):
+    high = df['High']
+    low = df['Low']
+    close = df['Close']
+    
+    bullish_obs = 0
+    bearish_obs = 0
+    
+    for i in range(lookback, len(df) - 1):
+        if close.iloc[i] > close.iloc[i-1] and close.iloc[i-2] < close.iloc[i-3]:
+            bullish_obs += 1
+        if close.iloc[i] < close.iloc[i-1] and close.iloc[i-2] > close.iloc[i-3]:
+            bearish_obs += 1
+    
+    return bullish_obs, bearish_obs
+
+def detect_choch(df, lookback=30):
+    high = df['High']
+    low = df['Low']
+    
+    bullish_choch = 0
+    bearish_choch = 0
+    
+    for i in range(lookback, len(df) - 5):
+        if high.iloc[i] > high.iloc[i-1] and high.iloc[i] > high.iloc[i+1]:
+            if high.iloc[i] > high.iloc[i-5:i].max():
+                bullish_choch += 1
+        if low.iloc[i] < low.iloc[i-1] and low.iloc[i] < low.iloc[i+1]:
+            if low.iloc[i] < low.iloc[i-5:i].min():
+                bearish_choch += 1
+    
+    return bullish_choch, bearish_choch
+
+def detect_supply_demand(df, lookback=20):
+    high = df['High']
+    low = df['Low']
+    close = df['Close']
+    
+    supply_zones = 0
+    demand_zones = 0
+    
+    for i in range(lookback, len(df) - 5):
+        if close.iloc[i] > close.iloc[i-1] and close.iloc[i+3] < close.iloc[i]:
+            supply_zones += 1
+        if close.iloc[i] < close.iloc[i-1] and close.iloc[i+3] > close.iloc[i]:
+            demand_zones += 1
+    
+    return supply_zones, demand_zones
+
+def analyze_volume(df):
+    volume = df['Volume']
+    close = df['Close']
+    
+    if volume.empty or volume.sum() == 0:
+        return 0, 0
+    
+    avg_volume = volume.tail(20).mean()
+    current_volume = volume.iloc[-1]
+    volume_surge = current_volume > (avg_volume * 1.5)
+    price_up = close.iloc[-1] > close.iloc[-5:].mean()
+    
+    if price_up and volume_surge:
+        return 1, volume_surge
+    elif not price_up and volume_surge:
+        return -1, volume_surge
+    else:
+        return 0, volume_surge
+
+def detect_fvg(df, lookback=20):
+    high = df['High']
+    low = df['Low']
+    
+    fvg_bullish = 0
+    fvg_bearish = 0
+    
+    for i in range(lookback, len(df) - 2):
+        if low.iloc[i] > high.iloc[i-1]:
+            fvg_bullish += 1
+        if high.iloc[i] < low.iloc[i-1]:
+            fvg_bearish += 1
+    
+    return fvg_bullish, fvg_bearish
+
+def detect_liquidity_levels(df, lookback=30):
+    high = df['High']
+    low = df['Low']
+    
+    swing_highs = []
+    swing_lows = []
+    
+    for i in range(5, len(high) - 1):
+        if high.iloc[i] > high.iloc[i-1] and high.iloc[i] > high.iloc[i+1]:
+            swing_highs.append(high.iloc[i])
+    
+    for i in range(5, len(low) - 1):
+        if low.iloc[i] < low.iloc[i-1] and low.iloc[i] < low.iloc[i+1]:
+            swing_lows.append(low.iloc[i])
+    
+    current_price = high.iloc[-1]
+    
+    sell_liq = 0
+    buy_liq = 0
+    
+    for sh in swing_highs[-5:]:
+        if current_price > sh:
+            sell_liq += 1
+    for sl in swing_lows[-5:]:
+        if current_price < sl:
+            buy_liq += 1
+    
+    return sell_liq, buy_liq
+
+# ============================================================
+# NEWS FETCHER
+# ============================================================
+
+@st.cache_data(ttl=300)
+def fetch_news():
+    events = [
+        {"time": "08:30", "currency": "USD", "impact": "High", "event": "CPI Data Release", "forecast": "0.3%"},
+        {"time": "10:00", "currency": "USD", "impact": "Medium", "event": "Consumer Confidence", "forecast": "104.5"},
+        {"time": "14:30", "currency": "USD", "impact": "High", "event": "Fed Chair Speech", "forecast": "N/A"},
+        {"time": "06:00", "currency": "EUR", "impact": "Medium", "event": "German GDP", "forecast": "0.1%"},
+        {"time": "09:30", "currency": "GBP", "impact": "High", "event": "BoE Rate Decision", "forecast": "5.25%"},
+    ]
+    return events
+
+# ============================================================
+# HTF ALIGNMENT CHECK
+# ============================================================
+
+def check_htf_alignment(df):
+    close = df['Close']
+    current_price = close.iloc[-1]
+    
+    ema50_daily = close.tail(50).mean()
+    ema200_daily = close.tail(200).mean() if len(close) > 200 else close.mean()
+    ema20_4h = close.tail(16).mean()
+    ema50_4h = close.tail(50).mean()
+    
+    daily_trend = "Bullish" if current_price > ema50_daily > ema200_daily else "Bearish" if current_price < ema50_daily < ema200_daily else "Neutral"
+    h4_trend = "Bullish" if current_price > ema20_4h > ema50_4h else "Bearish" if current_price < ema20_4h < ema50_4h else "Neutral"
+    
+    return {"daily_trend": daily_trend, "h4_trend": h4_trend}
+
+# ============================================================
+# PRECISION TAKE PROFIT CALCULATOR
+# ============================================================
+
+def calculate_precision_tps(price, atr, signal_type, pair_name):
+    
+    atr_adj = atr * 0.5 if pair_name in ["USTECH", "US30"] else atr
+    
+    if signal_type == "BUY":
+        return round(price + atr_adj * 0.2, 2), round(price + atr_adj * 0.35, 2), round(price + atr_adj * 0.55, 2), round(price - atr_adj * 0.5, 2)
+    elif signal_type == "STRONG BUY":
+        return round(price + atr_adj * 0.7, 2), round(price + atr_adj * 1.8, 2), round(price + atr_adj * 2.2, 2), round(price - atr_adj * 1.0, 2)
+    elif signal_type == "EXTREME BUY":
+        return round(price + atr_adj * 0.35, 2), round(price + atr_adj * 2.0, 2), round(price + atr_adj * 3.0, 2), round(price - atr_adj * 1.5, 2)
+    elif signal_type == "SELL":
+        return round(price - atr_adj * 0.2, 2), round(price - atr_adj * 0.35, 2), round(price - atr_adj * 0.55, 2), round(price + atr_adj * 0.5, 2)
+    elif signal_type == "STRONG SELL":
+        return round(price - atr_adj * 0.7, 2), round(price - atr_adj * 1.8, 2), round(price - atr_adj * 2.2, 2), round(price + atr_adj * 1.0, 2)
+    elif signal_type == "EXTREME SELL":
+        return round(price - atr_adj * 0.35, 2), round(price - atr_adj * 2.0, 2), round(price - atr_adj * 3.0, 2), round(price + atr_adj * 1.5, 2)
+    else:
+        return price, price, price, price
+
+# ============================================================
+# SIGNAL ENGINE
+# ============================================================
+
+def analyze_pair(df, pair_name, dxy_strength):
+
+    close = df['Close']
+    current_price = float(close.iloc[-1])
+
+    # VISIBLE INDICATORS
+    ema20 = close.ewm(span=20).mean()
+    ema50 = close.ewm(span=50).mean()
+    ema200 = close.ewm(span=200).mean()
+    rsi = calculate_rsi(close)
+    current_rsi = float(rsi.iloc[-1])
+    atr = (df['High'] - df['Low']).rolling(14).mean().iloc[-1]
+
+    # HIDDEN ENGINE
+    bullish_obs, bearish_obs = detect_order_blocks(df)
+    ob_score = bullish_obs - bearish_obs
+    bullish_choch, bearish_choch = detect_choch(df)
+    choch_score = bullish_choch - bearish_choch
+    supply_zones, demand_zones = detect_supply_demand(df)
+    sd_score = demand_zones - supply_zones
+    volume_score, volume_surge = analyze_volume(df)
+    fvg_bullish, fvg_bearish = detect_fvg(df)
+    fvg_score = fvg_bullish - fvg_bearish
+    sell_liq, buy_liq = detect_liquidity_levels(df)
+    liquidity_score = buy_liq - sell_liq
+    
+    hidden_score = (ob_score * 0.15 + choch_score * 0.20 + sd_score * 0.15 + 
+                    volume_score * 0.25 + fvg_score * 0.10 + liquidity_score * 0.15)
+    hidden_score = max(-20, min(20, hidden_score * 2))
+
+    # SCORING
+    score = 50
+    
+    if current_price > ema20.iloc[-1]: score += 5
+    else: score -= 5
+    if current_price > ema50.iloc[-1]: score += 10
+    else: score -= 10
+    if current_price > ema200.iloc[-1]: score += 20
+    else: score -= 20
+    
+    if current_rsi > 60: score += 15
+    elif current_rsi < 40: score -= 15
+    
+    recent_high = df['High'].tail(20).max()
+    recent_low = df['Low'].tail(20).min()
+    if current_price >= recent_high * 0.998: score += 10
+    if current_price <= recent_low * 1.002: score -= 10
+    
+    if pair_name in ["XAUUSD", "EURUSD", "GBPUSD", "USTECH", "US30"]:
+        if dxy_strength > 70: score -= 20
+        elif dxy_strength < 30: score += 20
+    if pair_name == "USDJPY":
+        if dxy_strength > 70: score += 20
+        elif dxy_strength < 30: score -= 20
+    
+    score += hidden_score
+    score = max(0, min(100, score))
+
+    # HTF ALIGNMENT
+    htf = check_htf_alignment(df)
+    
+    # SIGNAL DETERMINATION
+    if score >= 90:
+        signal, css, state, signal_type = "EXTREME BUY", "extreme-buy", "🚀 AGGRESSIVE ENTRY", "EXTREME BUY"
+        tp_label, tp_color = "🔥 EXTREME GAINS", "tp-extreme"
+    elif score >= 75:
+        signal, css, state, signal_type = "STRONG BUY", "strong-buy", "📈 BREAKTHROUGH", "STRONG BUY"
+        tp_label, tp_color = "⚡ MEDIUM GAINS", "tp-medium"
+    elif score >= 60:
+        signal, css, state, signal_type = "BUY", "buy", "🟡 SIGNAL FORMING", "BUY"
+        tp_label, tp_color = "🛡️ SAFE GAINS", "tp-safe"
+    elif score <= 10:
+        signal, css, state, signal_type = "EXTREME SELL", "extreme-sell", "🚀 AGGRESSIVE ENTRY", "EXTREME SELL"
+        tp_label, tp_color = "🔥 EXTREME GAINS", "tp-extreme"
+    elif score <= 25:
+        signal, css, state, signal_type = "STRONG SELL", "strong-sell", "📉 BREAKTHROUGH", "STRONG SELL"
+        tp_label, tp_color = "⚡ MEDIUM GAINS", "tp-medium"
+    elif score <= 40:
+        signal, css, state, signal_type = "SELL", "sell", "🟠 SIGNAL FORMING", "SELL"
+        tp_label, tp_color = "🛡️ SAFE GAINS", "tp-safe"
+    else:
+        signal, css, state, signal_type = "NEUTRAL", "forming", "⏳ WAIT", "NEUTRAL"
+        tp_label, tp_color = "⏳ NO SIGNAL", "forming"
+
+    # TP CALCULATION
+    tp1, tp2, tp3, sl = calculate_precision_tps(current_price, atr, signal_type, pair_name)
+    
+    # HTF ALIGNMENT CHECK
+    if "BUY" in signal_type and htf["daily_trend"] == "Bullish" and htf["h4_trend"] == "Bullish":
+        htf_aligned = True
+    elif "SELL" in signal_type and htf["daily_trend"] == "Bearish" and htf["h4_trend"] == "Bearish":
+        htf_aligned = True
+    elif signal_type == "NEUTRAL":
+        htf_aligned = True
+    else:
+        htf_aligned = False
+
+    return {
+        "signal": signal, "css": css, "state": state, "signal_type": signal_type,
+        "confidence": min(max(score, 1), 99), "price": round(current_price, 2),
+        "tp1": tp1, "tp2": tp2, "tp3": tp3, "sl": sl,
+        "rsi": round(current_rsi, 1), "tp_label": tp_label, "tp_color": tp_color,
+        "atr": round(atr, 2), "htf": htf, "htf_aligned": htf_aligned
+    }
+
+# ============================================================
+# DXY ENGINE
+# ============================================================
+
+dxy_data = get_data("DX-Y.NYB")
+dxy_strength = 50
+
+if dxy_data is not None:
+    dxy_close = dxy_data['Close']
+    dxy_ema = dxy_close.ewm(span=50).mean()
+    dxy_strength = 80 if dxy_close.iloc[-1] > dxy_ema.iloc[-1] else 20
+
+# ============================================================
+# TOP ROW: DXY + HTF + NEWS
+# ============================================================
+
+col1, col2, col3 = st.columns([1, 1, 2])
+
+with col1:
+    st.metric("💲 DXY COMPASS", f"{dxy_strength}%", 
+              delta="Strong" if dxy_strength > 70 else "Weak" if dxy_strength < 30 else "Neutral")
+
+with col2:
+    st.markdown("""
+    <div style="background: #0b1023; border-radius: 12px; padding: 15px; border: 1px solid #1f2a44;">
+        <p style="color: #888; font-size: 12px;">📊 HTF ALIGNMENT</p>
+        <p style="color: #00ff99; font-size: 14px;">Check pair cards below</p>
+        <p style="font-size: 12px; color: #888;">Daily + 4H Alignment</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col3:
+    st.markdown("""
+    <div style="background: #0b1023; border-radius: 12px; padding: 15px; border: 1px solid #1f2a44;">
+        <p style="color: #888; font-size: 12px;">📰 IMPORTANT NEWS</p>
+    """, unsafe_allow_html=True)
+    
+    news_items = fetch_news()
+    
+    for news in news_items[:4]:
+        impact_class = "news-high" if news["impact"] == "High" else "news-medium" if news["impact"] == "Medium" else "news-low"
+        impact_color = '#ff4444' if news['impact'] == 'High' else '#ffaa00' if news['impact'] == 'Medium' else '#4488ff'
+        st.markdown(f"""
+        <div class="news-card {impact_class}">
+            <span style="font-size: 11px; color: #888;">{news['time']}</span>
+            <span style="font-size: 11px; font-weight: bold; color: #fff;">{news['currency']}</span>
+            <span style="font-size: 11px; color: {impact_color};">{news['impact']}</span>
+            <br>
+            <span style="font-size: 12px; color: #ddd;">{news['event']}</span>
+            <span style="font-size: 10px; color: #888;">📊 {news['forecast']}</span>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown("</div>", unsafe_allow_html=True)
+
+st.markdown("---")
+
+# ============================================================
+# DASHBOARD - PAIR CARDS
+# ============================================================
+
+cols = st.columns(2)
+index = 0
+display_pairs = [p for p in pairs.keys() if p != "DXY"]
+
+for pair_name in display_pairs:
+    symbol = pairs[pair_name]
+    df = get_data(symbol)
+    if df is None: continue
+    
+    result = analyze_pair(df, pair_name, dxy_strength)
+    
+    with cols[index % 2]:
+        
+        htf_html = f"""
+        <div style="margin: 5px 0;">
+            <span style="font-size: 11px; color: #888;">Daily:</span>
+            <span class="htf-{result['htf']['daily_trend'].lower()}">{result['htf']['daily_trend']}</span>
+            <span style="font-size: 11px; color: #888; margin-left: 10px;">4H:</span>
+            <span class="htf-{result['htf']['h4_trend'].lower()}">{result['htf']['h4_trend']}</span>
+            <span style="margin-left: 10px; font-size: 12px;" class="{'aligned' if result['htf_aligned'] else 'misaligned'}">
+                {'✅ ALIGNED' if result['htf_aligned'] else '⚠️ MISALIGNED'}
+            </span>
+        </div>
+        """
+        
+        st.markdown(f"""
+        <div class="card">
+            <h2>{pair_name}</h2>
+            <div class="{result['css']}">{result['signal']}</div>
+            <br>
+            <h4>{result['state']}</h4>
+            <p>💎 Confidence: {result['confidence']}%</p>
+            <p>📍 Entry: <strong>{result['price']}</strong></p>
+            {htf_html}
+            <hr style="border-color: #1f2a44;">
+            <p style="font-weight: bold; color: #00ff99;">🎯 TAKE PROFITS ({result['tp_label']})</p>
+            <div class="tp-container">
+                <span class="tp-level {result['tp_color']}">TP1: {result['tp1']}</span>
+                <span class="tp-level {result['tp_color']}">TP2: {result['tp2']}</span>
+                <span class="tp-level {result['tp_color']}">TP3: {result['tp3']}</span>
+            </div>
+            <br>
+            <p><span class="sl-level">🛑 SL: {result['sl']}</span></p>
+            <p style="font-size: 12px; color: #888;">⚡ RSI: {result['rsi']} | 📊 ATR: {result['atr']}</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    index += 1
+
+# ============================================================
+# AUTO REFRESH
+# ============================================================
+
+st.success("✅ SEKWAILA V6 RUNNING - Auto-refreshes every 60 seconds")
+time.sleep(60)
+st.rerun()
