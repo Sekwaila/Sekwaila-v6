@@ -31,7 +31,7 @@ def get_price_data(symbol, interval="1h"):
     
     return pd.DataFrame({
         'timestamp': dates[-len(prices):],
-        'close': prices,
+        'close': prices,'open': [prices[i-1] if i > 0 else prices[0] for i in range(len(prices))],
         'high': [p + abs(np.random.randn() * vol/100) for p in prices],
         'low': [p - abs(np.random.randn() * vol/100) for p in prices],
         'volume': [1000 + i*20 + np.random.randint(-200,200) for i in range(len(prices))]
