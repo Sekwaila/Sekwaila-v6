@@ -38,15 +38,15 @@ body {
 # SIDEBAR
 # ---------------------------
 st.sidebar.title("⚙️ Signal Hunter AI")
-
 symbol = st.sidebar.selectbox(
-    "Trading Pair",
+    "Instrument",
     [
-        "EURUSD",
-        "GBPUSD",
-        "USDJPY",
-        "XAUUSD",
-        "BTCUSD"
+        "🟡 XAUUSD (Gold)",
+        "🇺🇸 US30 (Dow Jones)",
+        "🇺🇸 SP500",
+        "₿ BTCUSD",
+        "💶 EURUSD",
+        "💴 USDJPY"
     ]
 )
 
