@@ -54,7 +54,39 @@ def detect_swings(df, lookback=3):
 # BREAK OF STRUCTURE
 # =========================================
 
-def detect_bos(df):
+def detect_liquidity(df):
+
+    swings = detect_swings(df)
+
+    if len(swings) < 2:
+        return "NONE"
+
+    latest = df.iloc[-1]
+
+    highs = [s for s in swings if s["type"] == "HIGH"]
+    lows = [s for s in swings if s["type"] == "LOW"]
+
+    # Buy-side liquidity sweep
+    if highs:
+        last_high = highs[-1]["price"]
+
+        if (
+            latest["high"] > last_high
+            and latest["close"] < last_high
+        ):
+            return "BUY SIDE SWEEP"
+
+    # Sell-side liquidity sweep
+    if lows:
+        last_low = lows[-1]["price"]
+
+        if (
+            latest["low"] < last_low
+            and latest["close"] > last_low
+        ):
+            return "SELL SIDE SWEEP"
+
+    return "NONE"
 
     swings = detect_swings(df)
 
