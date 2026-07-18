@@ -1,17 +1,13 @@
 """
 =========================================
 SEKWAILA OMEGA X
-Signal Engine
-Version: 3.0
+Institutional Signal Engine
+Version: 4.0
 =========================================
 """
 
 from smc import analyze_smc
 
-
-# ---------------------------------------
-# GENERATE TRADING SIGNAL
-# ---------------------------------------
 
 def generate_signal(df, smc=None):
 
@@ -31,71 +27,119 @@ def generate_signal(df, smc=None):
     sell_score = 0
     reasons = []
 
-    # Trend
+    # =============================
+    # EMA TREND
+    # =============================
+
     ema20 = df["ema20"].iloc[-1]
     ema50 = df["ema50"].iloc[-1]
     ema200 = df["ema200"].iloc[-1]
 
     if ema20 > ema50 > ema200:
-        buy_score += 3
-        reasons.append("Bullish EMA alignment")
+        buy_score += 30
+        reasons.append("Strong bullish trend")
 
     elif ema20 < ema50 < ema200:
-        sell_score += 3
-        reasons.append("Bearish EMA alignment")
+        sell_score += 30
+        reasons.append("Strong bearish trend")
 
+    # =============================
     # RSI
+    # =============================
+
     rsi = df["rsi"].iloc[-1]
 
-    if rsi < 30:
-        buy_score += 2
-        reasons.append("RSI Oversold")
+    if 45 <= rsi <= 65:
+
+        if buy_score > sell_score:
+            buy_score += 15
+            reasons.append("Healthy bullish momentum")
+
+        elif sell_score > buy_score:
+            sell_score += 15
+            reasons.append("Healthy bearish momentum")
+
+    elif rsi < 30:
+        buy_score += 10
+        reasons.append("Oversold")
 
     elif rsi > 70:
-        sell_score += 2
-        reasons.append("RSI Overbought")
+        sell_score += 10
+        reasons.append("Overbought")
 
+    # =============================
     # BOS
+    # =============================
+
     if smc["bos"] == "BULLISH":
-        buy_score += 2
-        reasons.append("Bullish BOS")
+        buy_score += 20
+        reasons.append("Bullish Break of Structure")
 
     elif smc["bos"] == "BEARISH":
-        sell_score += 2
-        reasons.append("Bearish BOS")
+        sell_score += 20
+        reasons.append("Bearish Break of Structure")
 
-    # CHoCH
+    # =============================
+    # CHOCH
+    # =============================
+
     if smc["choch"] == "BULLISH":
-        buy_score += 1
+        buy_score += 15
+        reasons.append("Bullish CHoCH")
 
     elif smc["choch"] == "BEARISH":
-        sell_score += 1
+        sell_score += 15
+        reasons.append("Bearish CHoCH")
 
-    # Liquidity
+    # =============================
+    # LIQUIDITY
+    # =============================
+
     if smc["liquidity"] == "BUY SIDE":
-        buy_score += 1
+        buy_score += 10
+        reasons.append("Buy-side liquidity")
 
     elif smc["liquidity"] == "SELL SIDE":
-        sell_score += 1
+        sell_score += 10
+        reasons.append("Sell-side liquidity")
 
-    # Premium / Discount
+    # =============================
+    # PREMIUM / DISCOUNT
+    # =============================
+
     if smc["zone"] == "DISCOUNT":
-        buy_score += 1
+        buy_score += 10
+        reasons.append("Trading from discount")
 
-    else:
-        sell_score += 1
+    elif smc["zone"] == "PREMIUM":
+        sell_score += 10
+        reasons.append("Trading from premium")
 
-    # Signal decision
-    if buy_score >= sell_score and buy_score >= 6:
+    # =============================
+    # FINAL SIGNAL
+    # =============================
+
+    if buy_score >= 70:
+        signal = "STRONG BUY"
+        confidence = buy_score
+
+    elif buy_score >= 55:
         signal = "BUY"
+        confidence = buy_score
 
-    elif sell_score > buy_score and sell_score >= 6:
+    elif sell_score >= 70:
+        signal = "STRONG SELL"
+        confidence = sell_score
+
+    elif sell_score >= 55:
         signal = "SELL"
+        confidence = sell_score
 
     else:
         signal = "NO TRADE"
+        confidence = max(buy_score, sell_score)
 
-    confidence = min(max(buy_score, sell_score) * 10, 100)
+    confidence = min(confidence, 100)
 
     return {
         "signal": signal,
