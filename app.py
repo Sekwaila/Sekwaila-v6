@@ -55,3 +55,53 @@ timeframe = st.sidebar.selectbox(
 st.sidebar.divider()
 
 run = st.sidebar.button("🚀 Analyze Market")
+# -----------------------------
+# RUN ENGINE
+# -----------------------------
+
+if run:
+
+    with st.spinner("Analyzing market..."):
+
+        result = run_engine(symbol, timeframe)
+
+    if result is None:
+
+        st.error("No market data available.")
+
+    else:
+
+        col1, col2, col3 = st.columns(3)
+
+        col1.metric(
+            "Signal",
+            result["signal"]
+        )
+
+        col2.metric(
+            "Confidence",
+            f"{result['confidence']}%"
+        )
+
+        col3.metric(
+            "Entry Price",
+            result["entry"]
+        )
+
+        st.divider()
+
+        st.subheader("Trade Levels")
+
+        a, b = st.columns(2)
+
+        a.metric(
+            "Stop Loss",
+            result["stop_loss"]
+        )
+
+        b.metric(
+            "Take Profit",
+            result["take_profit"]
+        )
+
+        st.divider()
