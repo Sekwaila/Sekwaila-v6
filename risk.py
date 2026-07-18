@@ -2,7 +2,7 @@
 =========================================
 SEKWAILA OMEGA X
 Risk Management Engine
-Version: 1.0
+Version: 3.0
 =========================================
 """
 
@@ -11,33 +11,25 @@ Version: 1.0
 # POSITION SIZE
 # ---------------------------------------
 
-def calculate_position_size(account_balance,
-                            risk_percent,
-                            entry,
-                            stop_loss):
+def calculate_position_size(balance, risk_percent, entry, stop_loss):
 
-    risk_amount = account_balance * (risk_percent / 100)
+    risk_amount = balance * (risk_percent / 100)
 
     stop_distance = abs(entry - stop_loss)
 
     if stop_distance == 0:
         return 0
 
-    position_size = risk_amount / stop_distance
-
-    return round(position_size, 2)
+    return round(risk_amount / stop_distance, 2)
 
 
 # ---------------------------------------
-# RISK / REWARD
+# RISK : REWARD
 # ---------------------------------------
 
-def risk_reward(entry,
-                stop_loss,
-                take_profit):
+def calculate_rr(entry, stop_loss, take_profit):
 
     risk = abs(entry - stop_loss)
-
     reward = abs(take_profit - entry)
 
     if risk == 0:
@@ -47,55 +39,35 @@ def risk_reward(entry,
 
 
 # ---------------------------------------
-# TRADE SUMMARY
+# COMPLETE RISK REPORT
 # ---------------------------------------
 
-def trade_summary(account_balance,
-                  risk_percent,
-                  entry,
-                  stop_loss,
-                  take_profit):
-
-    return {
-
-        "Entry": round(entry, 2),
-
-        "Stop Loss": round(stop_loss, 2),
-
-        "Take Profit": round(take_profit, 2),
-
-        "Risk %": risk_percent,
-
-        "Risk Amount": round(account_balance * risk_percent / 100, 2),
-
-        "Position Size": calculate_position_size(
-            account_balance,
-            risk_percent,
-            entry,
-            stop_loss
-        ),
-
-        "Risk Reward": risk_reward(
-            entry,
-            stop_loss,
-            take_profit
-        )
-
-    }
-# ---------------------------------------
-# SIMPLE RISK CALCULATOR
-# ---------------------------------------
-
-def calculate_risk(account_balance,
+def calculate_risk(balance,
                    risk_percent,
                    entry,
                    stop_loss,
                    take_profit):
 
-    return trade_summary(
-        account_balance,
+    position = calculate_position_size(
+        balance,
         risk_percent,
+        entry,
+        stop_loss
+    )
+
+    rr = calculate_rr(
         entry,
         stop_loss,
         take_profit
-      )
+    )
+
+    return {
+        "balance": balance,
+        "risk_percent": risk_percent,
+        "risk_amount": round(balance * risk_percent / 100, 2),
+        "entry": round(entry, 2),
+        "stop_loss": round(stop_loss, 2),
+        "take_profit": round(take_profit, 2),
+        "position_size": position,
+        "risk_reward": rr
+    }
