@@ -209,7 +209,9 @@ Take Profit: {result['take_profit']}
 
 AI Rating: {result['rating']}
 """
-
+    # Remember the last market analyzed
+    BRAIN_MEMORY["last_symbol"] = symbol
+    BRAIN_MEMORY["last_timeframe"] = timeframe
     return response.strip()
 # =========================================
 # COMMAND ROUTER
