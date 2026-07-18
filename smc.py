@@ -218,3 +218,49 @@ def analyze_smc(df):
         "swings": detect_swings(df)
 
     }
+# =========================================
+# EQUAL HIGHS / EQUAL LOWS
+# =========================================
+
+def detect_equal_highs_lows(df, tolerance=0.001):
+
+    swings = detect_swings(df)
+
+    highs = [s for s in swings if s["type"] == "HIGH"]
+    lows = [s for s in swings if s["type"] == "LOW"]
+
+    equal_highs = []
+    equal_lows = []
+
+    # Equal Highs
+    for i in range(len(highs) - 1):
+
+        h1 = highs[i]
+        h2 = highs[i + 1]
+
+        if abs(h1["price"] - h2["price"]) <= (h1["price"] * tolerance):
+
+            equal_highs.append({
+                "price": round((h1["price"] + h2["price"]) / 2, 2),
+                "first": h1["index"],
+                "second": h2["index"]
+            })
+
+    # Equal Lows
+    for i in range(len(lows) - 1):
+
+        l1 = lows[i]
+        l2 = lows[i + 1]
+
+        if abs(l1["price"] - l2["price"]) <= (l1["price"] * tolerance):
+
+            equal_lows.append({
+                "price": round((l1["price"] + l2["price"]) / 2, 2),
+                "first": l1["index"],
+                "second": l2["index"]
+            })
+
+    return {
+        "equal_highs": equal_highs,
+        "equal_lows": equal_lows
+    }
