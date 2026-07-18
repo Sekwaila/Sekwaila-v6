@@ -2,71 +2,84 @@
 =========================================
 SEKWAILA OMEGA X
 Signal Engine
-Version: 1.0
+Version 2.0
 =========================================
 """
 
-from indicators import trend, rsi, atr
-from smc import market_structure
+from indicators import calculate_indicators
+from smc import analyze_smc
 
-
-# ---------------------------------------
-# GENERATE SIGNAL
-# ---------------------------------------
 
 def generate_signal(df):
 
-    structure = market_structure(df)
+    # Calculate indicators
+    df = calculate_indicators(df)
 
-    current_trend = trend(df["Close"])
+    # Smart Money Concepts
+    smc = analyze_smc(df)
 
-    current_rsi = float(rsi(df["Close"]).iloc[-1])
-
-    current_atr = float(atr(df).iloc[-1])
-
-    price = float(df["Close"].iloc[-1])
+    latest = df.iloc[-1]
 
     buy_score = 0
     sell_score = 0
 
-    # Trend
-    if current_trend == "BULLISH":
+    # -----------------------------
+    # EMA Trend
+    # -----------------------------
+    if latest["ema20"] > latest["ema50"] > latest["ema200"]:
         buy_score += 3
-    elif current_trend == "BEARISH":
+
+    elif latest["ema20"] < latest["ema50"] < latest["ema200"]:
         sell_score += 3
 
+    # -----------------------------
     # RSI
-    if current_rsi < 35:
+    # -----------------------------
+    if latest["rsi"] < 35:
         buy_score += 2
 
-    elif current_rsi > 65:
+    elif latest["rsi"] > 65:
         sell_score += 2
 
+    # -----------------------------
     # BOS
-    if structure["bos"] == "BULLISH":
+    # -----------------------------
+    if smc["bos"] == "BULLISH":
         buy_score += 2
 
-    elif structure["bos"] == "BEARISH":
+    elif smc["bos"] == "BEARISH":
         sell_score += 2
 
-    # Liquidity Sweep
-    if structure["liquidity"] == "BUY_SIDE":
+    # -----------------------------
+    # CHoCH
+    # -----------------------------
+    if smc["choch"] == "Bullish":
+        buy_score += 1
+
+    elif smc["choch"] == "Bearish":
+        sell_score += 1
+
+    # -----------------------------
+    # Liquidity
+    # -----------------------------
+    if smc["liquidity"] == "BUY_SIDE":
         buy_score += 2
 
-    elif structure["liquidity"] == "SELL_SIDE":
+    elif smc["liquidity"] == "SELL_SIDE":
         sell_score += 2
 
+    # -----------------------------
     # Premium / Discount
-    if structure["zone"] == "DISCOUNT":
+    # -----------------------------
+    if smc["zone"] == "DISCOUNT":
         buy_score += 1
 
     else:
         sell_score += 1
 
-    # -----------------------------------
+    # -----------------------------
     # Final Signal
-    # -----------------------------------
-
+    # -----------------------------
     if buy_score >= 8:
         signal = "STRONG BUY"
 
@@ -82,27 +95,27 @@ def generate_signal(df):
     else:
         signal = "NO TRADE"
 
-    # -----------------------------------
-    # TP & SL
-    # -----------------------------------
+    price = float(latest["close"])
+
+    atr = float(latest["atr"])
 
     if "BUY" in signal:
 
-        stop_loss = price - (current_atr * 1.5)
+        sl = price - (atr * 1.5)
 
-        take_profit = price + (current_atr * 3)
+        tp = price + (atr * 3)
 
     elif "SELL" in signal:
 
-        stop_loss = price + (current_atr * 1.5)
+        sl = price + (atr * 1.5)
 
-        take_profit = price - (current_atr * 3)
+        tp = price - (atr * 3)
 
     else:
 
-        stop_loss = price
+        sl = price
 
-        take_profit = price
+        tp = price
 
     return {
 
@@ -110,20 +123,15 @@ def generate_signal(df):
 
         "price": round(price, 2),
 
-        "trend": current_trend,
-
-        "rsi": round(current_rsi, 2),
-
-        "atr": round(current_atr, 2),
-
         "buy_score": buy_score,
 
         "sell_score": sell_score,
 
-        "stop_loss": round(stop_loss, 2),
+        "stop_loss": round(sl, 2),
 
-        "take_profit": round(take_profit, 2),
+        "take_profit": round(tp, 2),
 
-        "structure": structure
+        "atr": round(atr, 2),
 
+        "smc": smc
     }
