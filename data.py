@@ -1,105 +1,97 @@
 """
-=========================================
+===========================================
 SEKWAILA OMEGA X
 Market Data Module
-Version: 1.0
-=========================================
+Version: 2.0.0
+===========================================
 """
 
 import yfinance as yf
 import pandas as pd
+from logger import setup_logger
+
+logger = setup_logger()
 
 
-# ---------------------------------------
-# SYMBOL MAPPING
-# ---------------------------------------
-
-SYMBOLS = {
-    "XAUUSD": "GC=F",
-    "BTCUSD": "BTC-USD",
-    "EURUSD": "EURUSD=X",
-    "USDJPY": "JPY=X",
-    "US30": "^DJI",
-    "SP500": "^GSPC",
-}
-
-
-# ---------------------------------------
-# TIMEFRAME MAPPING
-# ---------------------------------------
-
-TIMEFRAMES = {
-    "M5": "5m",
-    "M15": "15m",
-    "H1": "1h",
-    "H4": "4h",
-    "D1": "1d",
-}
-
-
-# ---------------------------------------
-# DOWNLOAD MARKET DATA
-# ---------------------------------------
-
-def get_market_data(symbol="XAUUSD", timeframe="M15", period="7d"):
+def get_market_data(symbol="XAUUSD", timeframe="15m", bars=300):
     """
-    Downloads OHLC market data.
+    Downloads market data from Yahoo Finance.
+
+    Parameters:
+        symbol (str): Trading symbol
+        timeframe (str): Candle timeframe
+        bars (int): Number of candles
+
+    Returns:
+        pandas.DataFrame
     """
 
-    ticker = SYMBOLS.get(symbol)
+    symbol_map = {
+        "XAUUSD": "GC=F",
+        "BTCUSD": "BTC-USD",
+        "EURUSD": "EURUSD=X",
+        "USDJPY": "JPY=X",
+        "US30": "^DJI",
+        "SP500": "^GSPC",
+    }
 
-    interval = TIMEFRAMES.get(timeframe)
-
-    if ticker is None:
-        raise ValueError(f"Unsupported symbol: {symbol}")
-
-    if interval is None:
-        raise ValueError(f"Unsupported timeframe: {timeframe}")
+    ticker = symbol_map.get(symbol, symbol)
 
     try:
 
         df = yf.download(
             ticker,
-            period=period,
-            interval=interval,
+            period="60d",
+            interval=timeframe,
             progress=False,
-            auto_adjust=False
+            auto_adjust=True,
         )
 
         if df.empty:
-            return None
+            logger.warning(f"No data received for {symbol}")
+            return pd.DataFrame()
 
-        df = df.dropna()
+        df.reset_index(inplace=True)
 
-        return df
+        df.columns = [c.lower() for c in df.columns]
+
+        logger.info(f"{len(df)} candles loaded for {symbol}")
+
+        return df.tail(bars)
 
     except Exception as e:
 
-        print(f"Market Data Error: {e}")
+        logger.error(f"Market data error: {e}")
 
+        return pd.DataFrame()
+
+
+def latest_price(df):
+    """
+    Returns the latest closing price.
+    """
+
+    if df.empty:
         return None
 
+    return float(df["close"].iloc[-1])
 
-# ---------------------------------------
-# GET LATEST PRICE
-# ---------------------------------------
 
-def get_current_price(symbol="XAUUSD"):
+def latest_candle(df):
+    """
+    Returns the latest candle.
+    """
 
-    df = get_market_data(symbol, "M5", "1d")
-
-    if df is None:
+    if df.empty:
         return None
 
-    return float(df["Close"].iloc[-1])
+    return df.iloc[-1]
 
 
-# ---------------------------------------
-# CHECK CONNECTION
-# ---------------------------------------
+if __name__ == "__main__":
 
-def data_available(symbol="XAUUSD"):
+    data = get_market_data()
 
-    df = get_market_data(symbol)
+    print(data.tail())
 
-    return df is not None
+    print("Latest Price:", latest_price(data))
