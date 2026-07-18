@@ -1,97 +1,135 @@
 import streamlit as st
-from datetime import datetime
+from streamlit_autorefresh import st_autorefresh
 
-# ---------------------------
+from main import run_engine
+from data import get_market_data
+from ai import analyze_trade
+
+# =====================================
 # PAGE CONFIG
-# ---------------------------
+# =====================================
+
 st.set_page_config(
-    page_title="Signal Hunter AI",
+    page_title="SEKWAILA OMEGA X",
     page_icon="📈",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded",
 )
 
-# ---------------------------
+# Auto refresh every 60 seconds
+st_autorefresh(interval=60000, key="refresh")
+
+# =====================================
 # CUSTOM CSS
-# ---------------------------
+# =====================================
+
 st.markdown("""
 <style>
-body {
-    background-color: #0E1117;
+
+.stApp{
+    background-color:#0b1220;
+    color:white;
 }
 
-.main-title {
-    font-size: 38px;
-    font-weight: bold;
-    color: #FFD700;
+.main-title{
+    font-size:40px;
+    font-weight:bold;
+    text-align:center;
+    color:#00E5A8;
 }
 
-.card {
-    background-color: #1B1F2A;
-    padding: 15px;
-    border-radius: 12px;
-    border: 1px solid #333;
+.subtitle{
+    text-align:center;
+    color:#AAAAAA;
+    font-size:18px;
 }
+
+.block{
+    background:#111827;
+    padding:15px;
+    border-radius:12px;
+    border:1px solid #222;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
-# ---------------------------
+# =====================================
+# HEADER
+# =====================================
+
+st.markdown(
+    "<div class='main-title'>SEKWAILA OMEGA X</div>",
+    unsafe_allow_html=True
+)
+
+st.markdown(
+    "<div class='subtitle'>Institutional AI Trading Dashboard</div>",
+    unsafe_allow_html=True
+)
+
+st.divider()
+
+# =====================================
 # SIDEBAR
-# ---------------------------
-st.sidebar.title("⚙️ Signal Hunter AI")
+# =====================================
+
+st.sidebar.title("Trading Settings")
+
 symbol = st.sidebar.selectbox(
+
     "Instrument",
+
     [
-        "🟡 XAUUSD (Gold)",
-        "🇺🇸 US30 (Dow Jones)",
-        "🇺🇸 SP500",
-        "₿ BTCUSD",
-        "💶 EURUSD",
-        "💴 USDJPY"
+
+        "XAUUSD",
+
+        "US30",
+
+        "SP500",
+
+        "BTCUSD",
+
+        "EURUSD",
+
+        "USDJPY"
+
     ]
+
 )
 
 timeframe = st.sidebar.selectbox(
+
     "Timeframe",
+
     [
-        "M5",
-        "M15",
-        "H1",
-        "H4",
-        "D1"
+
+        "5m",
+
+        "15m",
+
+        "30m",
+
+        "1h",
+
+        "4h",
+
+        "1d"
+
     ]
+
 )
 
-# ---------------------------
-# MAIN
-# ---------------------------
-st.markdown("<div class='main-title'>📈 SIGNAL HUNTER AI</div>", unsafe_allow_html=True)
+risk_percent = st.sidebar.slider(
 
-st.write("Institutional AI Trading Assistant")
+    "Risk (%)",
 
-st.write("---")
+    1,
 
-col1, col2, col3 = st.columns(3)
+    10,
 
-with col1:
-    st.metric("Selected Pair", symbol)
+    2
 
-with col2:
-    st.metric("Timeframe", timeframe)
+)
 
-with col3:
-    st.metric("Status", "ONLINE")
-
-st.write("---")
-
-st.subheader("Market Analysis")
-
-st.info("AI Engine will appear here in Phase 2.")
-
-st.subheader("Trading Signal")
-
-st.warning("Waiting for analysis...")
-
-st.write("---")
-
-st.caption("Version 1.0 | Railway Deployment")
-st.caption(datetime.now().strftime("%d %B %Y %H:%M:%S"))
+st.sidebar.success("System Online")
