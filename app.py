@@ -177,3 +177,21 @@ if run:
         st.write("### Fair Value Gap")
 
         st.write("Detected" if smc["fvg"] else "Not Detected")
+# =========================================
+# FOOTER
+# =========================================
+
+st.divider()
+
+st.caption("🚀 SEKWAILA OMEGA X")
+st.caption("Institutional AI Trading Dashboard")
+st.caption("Version 3.0")
+st.caption("Developed by Johnny Sekwaila")
+
+# =========================================
+# AUTO REFRESH BUTTON
+# =========================================
+
+if st.sidebar.button("🔄 Refresh"):
+
+    st.rerun()
