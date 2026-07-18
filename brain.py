@@ -22,7 +22,31 @@ MARKETS = [
     "USDJPY",
     "US30",
     "SP500",
+# =========================================
+# SYMBOL ALIASES
+# =========================================
 
+SYMBOL_ALIASES = {
+
+    "gold": "XAUUSD",
+    "xau": "XAUUSD",
+
+    "bitcoin": "BTCUSD",
+    "btc": "BTCUSD",
+
+    "ethereum": "ETHUSD",
+    "eth": "ETHUSD",
+
+    "euro": "EURUSD",
+    "eurusd": "EURUSD",
+
+    "gbpusd": "GBPUSD",
+    "pound": "GBPUSD",
+
+    "us30": "US30",
+    "nas100": "NAS100",
+
+}
 ]
 
 
