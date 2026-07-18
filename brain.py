@@ -93,3 +93,55 @@ def best_setups(timeframe="15m", minimum_confidence=75):
             setups.append(market)
 
     return setups
+# =========================================
+# ASK THE BRAIN
+# =========================================
+
+def ask_brain(question, timeframe="15m"):
+    """
+    Answer trading questions.
+    """
+
+    question = question.lower()
+
+    # -----------------------------
+    # Best trade
+    # -----------------------------
+    if "best" in question or "strongest" in question:
+
+        setups = best_setups(timeframe)
+
+        if not setups:
+            return "No high-confidence setups found."
+
+        trade = setups[0]
+
+        return (
+            f"Best setup is {trade['symbol']}.\n"
+            f"Signal: {trade['signal']}\n"
+            f"Confidence: {trade['confidence']}%"
+        )
+
+    # -----------------------------
+    # Scan everything
+    # -----------------------------
+    if "scan" in question or "markets" in question:
+
+        setups = best_setups(timeframe)
+
+        if not setups:
+            return "No high-confidence setups found."
+
+        response = "Today's best setups:\n\n"
+
+        for trade in setups:
+
+            response += (
+                f"{trade['symbol']} | "
+                f"{trade['signal']} | "
+                f"{trade['confidence']}%\n"
+            )
+
+        return response
+
+    return "I don't understand that question yet."
