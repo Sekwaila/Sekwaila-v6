@@ -8,7 +8,7 @@ Version: 3.0
 
 import streamlit as st
 
-from main import run_engine
+from brain import analyze_market
 
 st.set_page_config(
     page_title="SEKWAILA OMEGA X",
@@ -63,7 +63,7 @@ if run:
 
     with st.spinner("Analyzing market..."):
 
-        result = run_engine(symbol, timeframe)
+        result = analyze_market(symbol, timeframe)
 
     if result is None:
 
