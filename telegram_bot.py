@@ -54,6 +54,25 @@ async def best(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     await update.message.reply_text(message)
+    # ==========================================
+# ANALYZE COMMAND
+# ==========================================
+
+async def analyze(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    if not context.args:
+
+        await update.message.reply_text(
+            "Usage:\n/analyze BTCUSD"
+        )
+
+        return
+
+    symbol = context.args[0].upper()
+
+    result = analyze_symbol(symbol)
+
+    await update.message.reply_text(result)
 # ==========================================
 # RUN BOT
 # ==========================================
@@ -63,7 +82,8 @@ def run_bot():
     app = Application.builder().token(BOT_TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("best", best))
+app.add_handler(CommandHandler("best", best))
+app.add_handler(CommandHandler("analyze", analyze))
 
     print("✅ SEKWAILA Telegram Bot Running...")
 
