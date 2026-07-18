@@ -218,7 +218,10 @@ Entry: {result['entry']}
 Stop Loss: {result['stop_loss']}
 Take Profit: {result['take_profit']}
 
-AI Rating: {result['rating']}
+AI Rating: {result['rating']}Reason:
+Reason:
+
+{result['reason']}
 """
     # Remember the last market analyzed
     BRAIN_MEMORY["last_symbol"] = symbol
