@@ -40,8 +40,21 @@ def analyze_market(symbol, timeframe="15m"):
 
     result = ai_confidence(df)
 
-    result["symbol"] = symbol
-    result["timeframe"] = timeframe
+    result.update({
+
+    "symbol": symbol,
+
+    "timeframe": timeframe,
+
+    "market_status": (
+        "ACTIVE"
+        if result["signal"] != "NO TRADE"
+        else "WAITING"
+    )
+
+})
+
+return result
 
     return result
 # =========================================
