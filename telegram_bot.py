@@ -54,3 +54,21 @@ async def best(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     await update.message.reply_text(message)
+# ==========================================
+# RUN BOT
+# ==========================================
+
+def run_bot():
+
+    app = Application.builder().token(BOT_TOKEN).build()
+
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("best", best))
+
+    print("✅ SEKWAILA Telegram Bot Running...")
+
+    app.run_polling()
+
+
+if __name__ == "__main__":
+    run_bot()
