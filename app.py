@@ -105,3 +105,75 @@ if run:
         )
 
         st.divider()
+# -----------------------------
+# AI ANALYSIS
+# -----------------------------
+
+        st.subheader("AI Decision")
+
+        c1, c2 = st.columns(2)
+
+        c1.metric(
+            "Buy Score",
+            result["buy_score"]
+        )
+
+        c2.metric(
+            "Sell Score",
+            result["sell_score"]
+        )
+
+        st.divider()
+
+        st.subheader("AI Reasons")
+
+        if result["reasons"]:
+
+            for reason in result["reasons"]:
+                st.success(reason)
+
+        else:
+
+            st.info("No strong confirmation found.")
+
+        st.divider()
+
+# -----------------------------
+# SMART MONEY CONCEPTS
+# -----------------------------
+
+        st.subheader("Smart Money Concepts")
+
+        smc = result["smc"]
+
+        x1, x2 = st.columns(2)
+
+        x1.metric(
+            "Break of Structure",
+            smc["bos"]
+        )
+
+        x2.metric(
+            "Change of Character",
+            smc["choch"]
+        )
+
+        y1, y2 = st.columns(2)
+
+        y1.metric(
+            "Liquidity",
+            smc["liquidity"]
+        )
+
+        y2.metric(
+            "Premium / Discount",
+            smc["zone"]
+        )
+
+        st.write("### Order Block")
+
+        st.json(smc["order_block"])
+
+        st.write("### Fair Value Gap")
+
+        st.write("Detected" if smc["fvg"] else "Not Detected")
