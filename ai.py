@@ -1,76 +1,99 @@
 """
 =========================================
 SEKWAILA OMEGA X
-AI Confidence Engine
-Version: 1.0
+AI Analysis Engine
+Version 2.0
 =========================================
 """
 
 from signals import generate_signal
 
 
-# ---------------------------------------
-# AI ANALYSIS
-# ---------------------------------------
-
-def analyze_market(df):
+def analyze_trade(df):
+    """
+    AI trading analysis based on generated signal.
+    """
 
     signal = generate_signal(df)
 
     confidence = 50
     reasons = []
 
-    # Trend
-    if signal["trend"] == "BULLISH":
-        confidence += 10
-        reasons.append("Bullish EMA Trend")
+    # -----------------------------
+    # Signal Strength
+    # -----------------------------
+    if signal["signal"] == "STRONG BUY":
+        confidence += 25
+        reasons.append("Strong bullish confirmation")
 
-    elif signal["trend"] == "BEARISH":
-        confidence += 10
-        reasons.append("Bearish EMA Trend")
+    elif signal["signal"] == "BUY":
+        confidence += 15
+        reasons.append("Bullish setup detected")
 
-    # BOS
-    if signal["structure"]["bos"] == "BULLISH":
-        confidence += 10
-        reasons.append("Bullish Break of Structure")
+    elif signal["signal"] == "STRONG SELL":
+        confidence += 25
+        reasons.append("Strong bearish confirmation")
 
-    elif signal["structure"]["bos"] == "BEARISH":
-        confidence += 10
-        reasons.append("Bearish Break of Structure")
-
-    # Liquidity
-    if signal["structure"]["liquidity"] != "NONE":
-        confidence += 10
-        reasons.append("Liquidity Sweep")
-
-    # Fair Value Gap
-    if signal["structure"]["fvg"] is not None:
-        confidence += 10
-        reasons.append("Fair Value Gap Present")
-
-    # Premium / Discount
-    if signal["structure"]["zone"] == "DISCOUNT":
-        confidence += 5
-        reasons.append("Discount Zone")
+    elif signal["signal"] == "SELL":
+        confidence += 15
+        reasons.append("Bearish setup detected")
 
     else:
-        confidence += 5
-        reasons.append("Premium Zone")
+        reasons.append("No high probability setup")
 
-    # RSI
-    if signal["rsi"] < 35:
-        confidence += 5
-        reasons.append("RSI Oversold")
+    # -----------------------------
+    # Buy / Sell Score
+    # -----------------------------
+    score = max(signal["buy_score"], signal["sell_score"])
 
-    elif signal["rsi"] > 65:
-        confidence += 5
-        reasons.append("RSI Overbought")
+    confidence += score * 2
 
-    # Limit confidence to 100%
+    # -----------------------------
+    # Smart Money Concepts
+    # -----------------------------
+    smc = signal["smc"]
+
+    if smc["bos"] != "NONE":
+        confidence += 5
+        reasons.append("Break of Structure confirmed")
+
+    if smc["choch"] != "None":
+        confidence += 5
+        reasons.append("Change of Character detected")
+
+    if smc["liquidity"] != "NONE":
+        confidence += 5
+        reasons.append("Liquidity sweep identified")
+
+    if smc["fvg"] is not None:
+        confidence += 5
+        reasons.append("Fair Value Gap detected")
+
+    if smc["order_block"] is not None:
+        confidence += 5
+        reasons.append("Order Block identified")
+
+    # -----------------------------
+    # Limit Confidence
+    # -----------------------------
     confidence = min(confidence, 100)
 
     return {
+
         "signal": signal["signal"],
+
         "confidence": confidence,
+
+        "buy_score": signal["buy_score"],
+
+        "sell_score": signal["sell_score"],
+
+        "entry": signal["price"],
+
+        "stop_loss": signal["stop_loss"],
+
+        "take_profit": signal["take_profit"],
+
         "reasons": reasons
+
     }
