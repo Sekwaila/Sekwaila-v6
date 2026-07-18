@@ -158,3 +158,32 @@ def ask_brain(question, timeframe="15m"):
         return response
 
     return "I don't understand that question yet."
+# =========================================
+# ANALYZE ANY SYMBOL
+# =========================================
+
+def analyze_symbol(symbol, timeframe="15m"):
+    """
+    Return a detailed analysis for one symbol.
+    """
+
+    result = analyze_market(symbol, timeframe)
+
+    if result is None:
+        return f"No market data available for {symbol}."
+
+    response = f"""
+📈 {symbol}
+
+Signal: {result['signal']}
+Confidence: {result['confidence']}%
+Status: {result['market_status']}
+
+Entry: {result['entry']}
+Stop Loss: {result['stop_loss']}
+Take Profit: {result['take_profit']}
+
+AI Rating: {result['rating']}
+"""
+
+    return response.strip()
