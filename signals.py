@@ -2,136 +2,105 @@
 =========================================
 SEKWAILA OMEGA X
 Signal Engine
-Version 2.0
+Version: 3.0
 =========================================
 """
 
-from indicators import calculate_indicators
 from smc import analyze_smc
 
 
-def generate_signal(df):
+# ---------------------------------------
+# GENERATE TRADING SIGNAL
+# ---------------------------------------
 
-    # Calculate indicators
-    df = calculate_indicators(df)
+def generate_signal(df, smc=None):
 
-    # Smart Money Concepts
-    smc = analyze_smc(df)
+    if df.empty:
+        return {
+            "signal": "NO TRADE",
+            "confidence": 0,
+            "buy_score": 0,
+            "sell_score": 0,
+            "reasons": []
+        }
 
-    latest = df.iloc[-1]
+    if smc is None:
+        smc = analyze_smc(df)
 
     buy_score = 0
     sell_score = 0
+    reasons = []
 
-    # -----------------------------
-    # EMA Trend
-    # -----------------------------
-    if latest["ema20"] > latest["ema50"] > latest["ema200"]:
+    # Trend
+    ema20 = df["ema20"].iloc[-1]
+    ema50 = df["ema50"].iloc[-1]
+    ema200 = df["ema200"].iloc[-1]
+
+    if ema20 > ema50 > ema200:
         buy_score += 3
+        reasons.append("Bullish EMA alignment")
 
-    elif latest["ema20"] < latest["ema50"] < latest["ema200"]:
+    elif ema20 < ema50 < ema200:
         sell_score += 3
+        reasons.append("Bearish EMA alignment")
 
-    # -----------------------------
     # RSI
-    # -----------------------------
-    if latest["rsi"] < 35:
+    rsi = df["rsi"].iloc[-1]
+
+    if rsi < 30:
         buy_score += 2
+        reasons.append("RSI Oversold")
 
-    elif latest["rsi"] > 65:
+    elif rsi > 70:
         sell_score += 2
+        reasons.append("RSI Overbought")
 
-    # -----------------------------
     # BOS
-    # -----------------------------
     if smc["bos"] == "BULLISH":
         buy_score += 2
+        reasons.append("Bullish BOS")
 
     elif smc["bos"] == "BEARISH":
         sell_score += 2
+        reasons.append("Bearish BOS")
 
-    # -----------------------------
     # CHoCH
-    # -----------------------------
-    if smc["choch"] == "Bullish":
+    if smc["choch"] == "BULLISH":
         buy_score += 1
 
-    elif smc["choch"] == "Bearish":
+    elif smc["choch"] == "BEARISH":
         sell_score += 1
 
-    # -----------------------------
     # Liquidity
-    # -----------------------------
-    if smc["liquidity"] == "BUY_SIDE":
-        buy_score += 2
+    if smc["liquidity"] == "BUY SIDE":
+        buy_score += 1
 
-    elif smc["liquidity"] == "SELL_SIDE":
-        sell_score += 2
+    elif smc["liquidity"] == "SELL SIDE":
+        sell_score += 1
 
-    # -----------------------------
     # Premium / Discount
-    # -----------------------------
     if smc["zone"] == "DISCOUNT":
         buy_score += 1
 
     else:
         sell_score += 1
 
-    # -----------------------------
-    # Final Signal
-    # -----------------------------
-    if buy_score >= 8:
-        signal = "STRONG BUY"
-
-    elif buy_score >= 5:
+    # Signal decision
+    if buy_score >= sell_score and buy_score >= 6:
         signal = "BUY"
 
-    elif sell_score >= 8:
-        signal = "STRONG SELL"
-
-    elif sell_score >= 5:
+    elif sell_score > buy_score and sell_score >= 6:
         signal = "SELL"
 
     else:
         signal = "NO TRADE"
 
-    price = float(latest["close"])
-
-    atr = float(latest["atr"])
-
-    if "BUY" in signal:
-
-        sl = price - (atr * 1.5)
-
-        tp = price + (atr * 3)
-
-    elif "SELL" in signal:
-
-        sl = price + (atr * 1.5)
-
-        tp = price - (atr * 3)
-
-    else:
-
-        sl = price
-
-        tp = price
+    confidence = min(max(buy_score, sell_score) * 10, 100)
 
     return {
-
         "signal": signal,
-
-        "price": round(price, 2),
-
+        "confidence": confidence,
         "buy_score": buy_score,
-
         "sell_score": sell_score,
-
-        "stop_loss": round(sl, 2),
-
-        "take_profit": round(tp, 2),
-
-        "atr": round(atr, 2),
-
-        "smc": smc
+        "reasons": reasons
     }
