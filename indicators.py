@@ -1,40 +1,24 @@
 """
-=========================================
+===========================================
 SEKWAILA OMEGA X
-Technical Indicators Module
-Version: 1.0
-=========================================
+Technical Indicators
+Version: 2.0.0
+===========================================
 """
 
 import pandas as pd
-import numpy as np
 
 
-# ---------------------------------------
-# EMA
-# ---------------------------------------
-
-def ema(data, period):
-    """
-    Exponential Moving Average
-    """
-    return data.ewm(span=period, adjust=False).mean()
+def ema(series, period):
+    return series.ewm(span=period, adjust=False).mean()
 
 
-# ---------------------------------------
-# RSI
-# ---------------------------------------
+def rsi(series, period=14):
+    delta = series.diff()
 
-def rsi(data, period=14):
-    """
-    Relative Strength Index
-    """
+    gain = delta.clip(lower=0)
 
-    delta = data.diff()
-
-    gain = delta.where(delta > 0, 0)
-
-    loss = -delta.where(delta < 0, 0)
+    loss = -delta.clip(upper=0)
 
     avg_gain = gain.rolling(period).mean()
 
@@ -45,110 +29,79 @@ def rsi(data, period=14):
     return 100 - (100 / (1 + rs))
 
 
-# ---------------------------------------
-# ATR
-# ---------------------------------------
-
 def atr(df, period=14):
-    """
-    Average True Range
-    """
 
-    high = df["High"]
+    high = df["high"]
 
-    low = df["Low"]
+    low = df["low"]
 
-    close = df["Close"]
+    close = df["close"]
 
-    tr1 = high - low
-
-    tr2 = abs(high - close.shift())
-
-    tr3 = abs(low - close.shift())
-
-    tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
+    tr = pd.concat([
+        high - low,
+        (high - close.shift()).abs(),
+        (low - close.shift()).abs()
+    ], axis=1).max(axis=1)
 
     return tr.rolling(period).mean()
 
 
-# ---------------------------------------
-# MACD
-# ---------------------------------------
+def macd(series):
 
-def macd(data):
+    ema12 = ema(series, 12)
 
-    ema12 = ema(data, 12)
-
-    ema26 = ema(data, 26)
+    ema26 = ema(series, 26)
 
     macd_line = ema12 - ema26
 
-    signal = macd_line.ewm(span=9, adjust=False).mean()
+    signal = ema(macd_line, 9)
 
     histogram = macd_line - signal
 
     return macd_line, signal, histogram
 
 
-# ---------------------------------------
-# VWAP
-# ---------------------------------------
+def bollinger_bands(series, period=20):
 
-def vwap(df):
-    """
-    Volume Weighted Average Price
-    """
+    middle = series.rolling(period).mean()
 
-    price = (df["High"] + df["Low"] + df["Close"]) / 3
+    std = series.rolling(period).std()
 
-    return (price * df["Volume"]).cumsum() / df["Volume"].cumsum()
+    upper = middle + (std * 2)
 
+    lower = middle - (std * 2)
 
-# ---------------------------------------
-# VOLUME MOVING AVERAGE
-# ---------------------------------------
-
-def volume_ma(df, period=20):
-
-    return df["Volume"].rolling(period).mean()
+    return upper, middle, lower
 
 
-# ---------------------------------------
-# TREND DETECTION
-# ---------------------------------------
+def calculate_indicators(df):
 
-def trend(close):
+    df = df.copy()
 
-    ema50 = ema(close, 50)
+    df["ema20"] = ema(df["close"], 20)
 
-    ema200 = ema(close, 200)
+    df["ema50"] = ema(df["close"], 50)
 
-    latest = close.iloc[-1]
+    df["ema200"] = ema(df["close"], 200)
 
-    if latest > ema50.iloc[-1] > ema200.iloc[-1]:
-        return "BULLISH"
+    df["rsi"] = rsi(df["close"])
 
-    elif latest < ema50.iloc[-1] < ema200.iloc[-1]:
-        return "BEARISH"
+    df["atr"] = atr(df)
 
-    return "RANGING"
+    macd_line, signal, histogram = macd(df["close"])
 
+    df["macd"] = macd_line
 
-# ---------------------------------------
-# MOMENTUM SCORE
-# ---------------------------------------
+    df["macd_signal"] = signal
 
-def momentum_score(close):
+    df["macd_hist"] = histogram
 
-    score = 0
+    upper, middle, lower = bollinger_bands(df["close"])
 
-    if rsi(close).iloc[-1] > 55:
-        score += 1
+    df["bb_upper"] = upper
 
-    if macd(close)[0].iloc[-1] > macd(close)[1].iloc[-1]:
-        score += 1
+    df["bb_middle"] = middle
 
-    if close.iloc[-1] > ema(close, 50).iloc[-1]:
-        score += 1
+    df["bb_lower"] = lower
 
-    return score
+    return df
