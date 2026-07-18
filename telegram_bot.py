@@ -1,11 +1,17 @@
-from telegram import Update
 from telegram.ext import (
     Application,
     CommandHandler,
+    MessageHandler,
     ContextTypes,
+    filters,
+)
 )
 
-from brain import best_setups, analyze_symbol
+from brain import (
+    best_setups,
+    analyze_symbol,
+    process_command,
+)
 import os
 from dotenv import load_dotenv
 
@@ -73,6 +79,44 @@ async def analyze(update: Update, context: ContextTypes.DEFAULT_TYPE):
     result = analyze_symbol(symbol)
 
     await update.message.reply_text(result)
+    # ==========================================
+# SCAN COMMAND
+# ==========================================
+
+async def scan(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    setups = best_setups()
+
+    if not setups:
+
+        await update.message.reply_text(
+            "❌ No high-confidence setups found."
+        )
+
+        return
+
+    message = "📊 SEKWAILA OMEGA X\n\n"
+
+    for trade in setups:
+
+        message += (
+            f"📈 {trade['symbol']}\n"
+            f"Signal: {trade['signal']}\n"
+            f"Confidence: {trade['confidence']}%\n\n"
+        )
+
+    await update.message.reply_text(message)
+    # ==========================================
+# CHAT MESSAGE
+# ==========================================
+
+async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    text = update.message.text
+
+    response = process_command(text)
+
+    await update.message.reply_text(response)
 # ==========================================
 # RUN BOT
 # ==========================================
@@ -81,10 +125,13 @@ def run_bot():
 
     app = Application.builder().token(BOT_TOKEN).build()
 
-    app.add_handler(CommandHandler("start", start))
+   app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("best", best))
 app.add_handler(CommandHandler("analyze", analyze))
-
+app.add_handler(CommandHandler("scan", scan)) 
+app.add_handler(
+    MessageHandler(filters.TEXT & ~filters.COMMAND, chat)
+)
     print("✅ SEKWAILA Telegram Bot Running...")
 
     app.run_polling()
