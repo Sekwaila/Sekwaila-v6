@@ -44,3 +44,30 @@ def analyze_market(symbol, timeframe="15m"):
     result["timeframe"] = timeframe
 
     return result
+# =========================================
+# SCAN ALL MARKETS
+# =========================================
+
+def scan_markets(timeframe="15m"):
+    """
+    Scan all configured markets and rank them by confidence.
+    """
+
+    results = []
+
+    for symbol in MARKETS:
+
+        print(f"Scanning {symbol}...")
+
+        analysis = analyze_market(symbol, timeframe)
+
+        if analysis is not None:
+            results.append(analysis)
+
+    # Highest confidence first
+    results.sort(
+        key=lambda x: x["confidence"],
+        reverse=True
+    )
+
+    return results
