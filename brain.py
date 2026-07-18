@@ -180,7 +180,18 @@ def ask_brain(question, timeframe="15m"):
             )
 
         return response
+    # -----------------------------
+    # Trend of last analyzed market
+    # -----------------------------
 
+    if "trend" in question:
+
+        symbol = BRAIN_MEMORY["last_symbol"]
+
+        if symbol is None:
+            return "Analyze a market first."
+
+        return analyze_symbol(symbol, timeframe)
     return "I don't understand that question yet."
 # =========================================
 # ANALYZE ANY SYMBOL
