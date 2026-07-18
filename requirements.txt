@@ -6,3 +6,4 @@ yfinance
 requests
 streamlit-autorefresh
 python-dotenv
+python-telegram-bot==20.8
