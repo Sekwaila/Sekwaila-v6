@@ -1,97 +1,118 @@
 """
-===========================================
+=========================================
 SEKWAILA OMEGA X
 Market Data Module
-Version: 2.0.0
-===========================================
+Version: 3.0
+=========================================
 """
 
 import yfinance as yf
 import pandas as pd
-from logger import setup_logger
 
-logger = setup_logger()
 
+# ---------------------------------------
+# YAHOO SYMBOL MAP
+# ---------------------------------------
+
+SYMBOLS = {
+    "XAUUSD": "GC=F",
+    "BTCUSD": "BTC-USD",
+    "EURUSD": "EURUSD=X",
+    "GBPUSD": "GBPUSD=X",
+    "USDJPY": "JPY=X",
+    "US30": "^DJI",
+    "SP500": "^GSPC",
+}
+
+
+# ---------------------------------------
+# TIMEFRAME MAP
+# ---------------------------------------
+
+TIMEFRAMES = {
+    "5m": "5m",
+    "15m": "15m",
+    "30m": "30m",
+    "1h": "60m",
+    "1d": "1d",
+}
+
+
+# ---------------------------------------
+# DOWNLOAD DATA
+# ---------------------------------------
 
 def get_market_data(symbol="XAUUSD", timeframe="15m", bars=300):
-    """
-    Downloads market data from Yahoo Finance.
 
-    Parameters:
-        symbol (str): Trading symbol
-        timeframe (str): Candle timeframe
-        bars (int): Number of candles
-
-    Returns:
-        pandas.DataFrame
-    """
-
-    symbol_map = {
-        "XAUUSD": "GC=F",
-        "BTCUSD": "BTC-USD",
-        "EURUSD": "EURUSD=X",
-        "USDJPY": "JPY=X",
-        "US30": "^DJI",
-        "SP500": "^GSPC",
-    }
-
-    ticker = symbol_map.get(symbol, symbol)
+    ticker = SYMBOLS.get(symbol, symbol)
+    interval = TIMEFRAMES.get(timeframe, "15m")
 
     try:
 
         df = yf.download(
             ticker,
             period="60d",
-            interval=timeframe,
+            interval=interval,
             progress=False,
             auto_adjust=True,
+            threads=False,
         )
 
         if df.empty:
-            logger.warning(f"No data received for {symbol}")
             return pd.DataFrame()
 
         df.reset_index(inplace=True)
 
-        df.columns = [c.lower() for c in df.columns]
+        # Standardize column names
+        df.columns = [str(c).lower() for c in df.columns]
 
-        logger.info(f"{len(df)} candles loaded for {symbol}")
+        # Rename date column
+        if "date" in df.columns:
+            df.rename(columns={"date": "datetime"}, inplace=True)
 
-        return df.tail(bars)
+        if "datetime" not in df.columns:
+            df.rename(columns={df.columns[0]: "datetime"}, inplace=True)
+
+        # Keep only the columns used by the project
+        df = df[
+            [
+                "datetime",
+                "open",
+                "high",
+                "low",
+                "close",
+                "volume",
+            ]
+        ]
+
+        return df.tail(bars).reset_index(drop=True)
 
     except Exception as e:
 
-        logger.error(f"Market data error: {e}")
+        print("DATA ERROR:", e)
 
         return pd.DataFrame()
 
 
+# ---------------------------------------
+# LATEST PRICE
+# ---------------------------------------
+
 def latest_price(df):
-    """
-    Returns the latest closing price.
-    """
 
     if df.empty:
         return None
 
-    return float(df["close"].iloc[-1])
+    return float(df.iloc[-1]["close"])
 
+
+# ---------------------------------------
+# LATEST CANDLE
+# ---------------------------------------
 
 def latest_candle(df):
-    """
-    Returns the latest candle.
-    """
 
     if df.empty:
         return None
 
     return df.iloc[-1]
-
-
-if __name__ == "__main__":
-
-    data = get_market_data()
-
-    print(data.tail())
-
-    print("Latest Price:", latest_price(data))
