@@ -133,3 +133,106 @@ risk_percent = st.sidebar.slider(
 )
 
 st.sidebar.success("System Online")
+# =====================================
+# LOAD MARKET DATA
+# =====================================
+
+try:
+
+    df = get_market_data(
+        symbol=symbol,
+        timeframe=timeframe
+    )
+
+    if df.empty:
+
+        st.error("No market data available.")
+
+        st.stop()
+
+except Exception as e:
+
+    st.error(f"Market Data Error: {e}")
+
+    st.stop()
+
+# =====================================
+# AI ANALYSIS
+# =====================================
+
+try:
+
+    analysis = analyze_trade(df)
+
+except Exception as e:
+
+    st.error(f"Analysis Error: {e}")
+
+    st.stop()
+
+# =====================================
+# PRICE
+# =====================================
+
+current_price = round(float(df["close"].iloc[-1]), 2)
+
+# =====================================
+# DASHBOARD METRICS
+# =====================================
+
+col1, col2, col3, col4 = st.columns(4)
+
+col1.metric(
+    "Current Price",
+    current_price
+)
+
+col2.metric(
+    "Signal",
+    analysis["signal"]
+)
+
+col3.metric(
+    "Confidence",
+    f'{analysis["confidence"]}%'
+)
+
+col4.metric(
+    "Risk",
+    f"{risk_percent}%"
+)
+
+st.divider()
+
+# =====================================
+# ENTRY / SL / TP
+# =====================================
+
+c1, c2, c3 = st.columns(3)
+
+c1.metric(
+    "Entry",
+    analysis["entry"]
+)
+
+c2.metric(
+    "Stop Loss",
+    analysis["stop_loss"]
+)
+
+c3.metric(
+    "Take Profit",
+    analysis["take_profit"]
+)
+
+st.divider()
+
+# =====================================
+# AI REASONS
+# =====================================
+
+st.subheader("AI Analysis")
+
+for reason in analysis["reasons"]:
+
+    st.success(reason)
