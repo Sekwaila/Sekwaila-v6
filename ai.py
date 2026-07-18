@@ -73,3 +73,54 @@ def ai_confidence(df):
 
     if checks["Session"] == "ACTIVE":
         coach.append("Trading session is active.")
+    # -----------------------------
+    # PRICE LEVELS
+    # -----------------------------
+
+    entry = float(df["close"].iloc[-1])
+
+    atr = float(df["atr"].iloc[-1])
+
+    direction = signal["direction"]
+
+    if direction == "BUY":
+
+        stop_loss = round(entry - (atr * 1.5), 2)
+
+        take_profit = round(entry + (atr * 3), 2)
+
+    elif direction == "SELL":
+
+        stop_loss = round(entry + (atr * 1.5), 2)
+
+        take_profit = round(entry - (atr * 3), 2)
+
+    else:
+
+        stop_loss = None
+
+        take_profit = None
+
+    # -----------------------------
+    # STAR RATING
+    # -----------------------------
+
+    if score >= 90:
+
+        rating = "★★★★★"
+
+    elif score >= 80:
+
+        rating = "★★★★☆"
+
+    elif score >= 70:
+
+        rating = "★★★☆☆"
+
+    elif score >= 60:
+
+        rating = "★★☆☆☆"
+
+    else:
+
+        rating = "★☆☆☆☆"
