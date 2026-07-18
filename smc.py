@@ -1,196 +1,149 @@
 """
 =========================================
 SEKWAILA OMEGA X
-Smart Money Concepts
-Version 2.0
+Smart Money Concepts Engine
+Version: 3.0
 =========================================
 """
 
 import pandas as pd
 
 
-# ---------------------------------
-# Swing Highs / Lows
-# ---------------------------------
+# ---------------------------------------
+# BREAK OF STRUCTURE
+# ---------------------------------------
 
-def swing_high(df, lookback=5):
+def detect_bos(df):
 
-    return df["high"].rolling(lookback, center=True).max()
+    if len(df) < 20:
+        return "NONE"
 
+    last_close = df["close"].iloc[-1]
 
-def swing_low(df, lookback=5):
+    recent_high = df["high"].rolling(20).max().iloc[-2]
+    recent_low = df["low"].rolling(20).min().iloc[-2]
 
-    return df["low"].rolling(lookback, center=True).min()
-
-
-# ---------------------------------
-# Break Of Structure
-# ---------------------------------
-
-def break_of_structure(df):
-
-    high = df["high"].iloc[-2]
-
-    low = df["low"].iloc[-2]
-
-    close = df["close"].iloc[-1]
-
-    if close > high:
+    if last_close > recent_high:
         return "BULLISH"
 
-    if close < low:
+    if last_close < recent_low:
         return "BEARISH"
 
     return "NONE"
 
 
-# ---------------------------------
-# Change Of Character
-# ---------------------------------
+# ---------------------------------------
+# CHANGE OF CHARACTER
+# ---------------------------------------
 
-def choch(df):
+def detect_choch(df):
 
-    bos = break_of_structure(df)
+    if len(df) < 50:
+        return "NONE"
 
-    if bos == "BULLISH":
-        return "Bullish"
+    ema50 = df["ema50"].iloc[-1]
+    ema200 = df["ema200"].iloc[-1]
 
-    if bos == "BEARISH":
-        return "Bearish"
+    if ema50 > ema200:
+        return "BULLISH"
 
-    return "None"
-
-
-# ---------------------------------
-# Fair Value Gap
-# ---------------------------------
-
-def fair_value_gap(df):
-
-    if len(df) < 3:
-        return None
-
-    first = df.iloc[-3]
-
-    third = df.iloc[-1]
-
-    if third["low"] > first["high"]:
-
-        return {
-
-            "type": "Bullish",
-
-            "top": third["low"],
-
-            "bottom": first["high"]
-
-        }
-
-    if third["high"] < first["low"]:
-
-        return {
-
-            "type": "Bearish",
-
-            "top": first["low"],
-
-            "bottom": third["high"]
-
-        }
-
-    return None
-
-
-# ---------------------------------
-# Order Block
-# ---------------------------------
-
-def order_block(df):
-
-    candle = df.iloc[-2]
-
-    if candle["close"] < candle["open"]:
-
-        return {
-
-            "type": "Bullish",
-
-            "high": candle["high"],
-
-            "low": candle["low"]
-
-        }
-
-    return {
-
-        "type": "Bearish",
-
-        "high": candle["high"],
-
-        "low": candle["low"]
-
-    }
-
-
-# ---------------------------------
-# Liquidity Sweep
-# ---------------------------------
-
-def liquidity(df):
-
-    recent_high = df["high"].tail(10).max()
-
-    recent_low = df["low"].tail(10).min()
-
-    last = df.iloc[-1]
-
-    if last["low"] < recent_low:
-
-        return "BUY_SIDE"
-
-    if last["high"] > recent_high:
-
-        return "SELL_SIDE"
+    if ema50 < ema200:
+        return "BEARISH"
 
     return "NONE"
 
 
-# ---------------------------------
-# Premium / Discount
-# ---------------------------------
+# ---------------------------------------
+# LIQUIDITY SWEEP
+# ---------------------------------------
+
+def detect_liquidity(df):
+
+    high = df["high"].tail(10).max()
+    low = df["low"].tail(10).min()
+
+    close = df["close"].iloc[-1]
+
+    if close > high:
+        return "BUY SIDE"
+
+    if close < low:
+        return "SELL SIDE"
+
+    return "NONE"
+
+
+# ---------------------------------------
+# FAIR VALUE GAP
+# ---------------------------------------
+
+def detect_fvg(df):
+
+    if len(df) < 3:
+        return False
+
+    c1 = df.iloc[-3]
+    c3 = df.iloc[-1]
+
+    if c1["high"] < c3["low"]:
+        return True
+
+    if c1["low"] > c3["high"]:
+        return True
+
+    return False
+
+
+# ---------------------------------------
+# ORDER BLOCK
+# ---------------------------------------
+
+def detect_order_block(df):
+
+    last = df.iloc[-1]
+
+    return {
+        "high": round(last["high"], 2),
+        "low": round(last["low"], 2)
+    }
+
+
+# ---------------------------------------
+# PREMIUM / DISCOUNT
+# ---------------------------------------
 
 def premium_discount(df):
 
-    highest = df["high"].tail(50).max()
+    highest = df["high"].tail(100).max()
+    lowest = df["low"].tail(100).min()
 
-    lowest = df["low"].tail(50).min()
+    equilibrium = (highest + lowest) / 2
 
-    eq = (highest + lowest) / 2
+    current = df["close"].iloc[-1]
 
-    if df["close"].iloc[-1] > eq:
-
+    if current > equilibrium:
         return "PREMIUM"
 
     return "DISCOUNT"
 
 
-# ---------------------------------
-# Full SMC Analysis
-# ---------------------------------
+# ---------------------------------------
+# MAIN ANALYSIS
+# ---------------------------------------
 
 def analyze_smc(df):
 
     return {
 
-        "bos": break_of_structure(df),
+        "bos": detect_bos(df),
 
-        "choch": choch(df),
+        "choch": detect_choch(df),
 
-        "fvg": fair_value_gap(df),
+        "liquidity": detect_liquidity(df),
 
-        "order_block": order_block(df),
+        "fvg": detect_fvg(df),
 
-        "liquidity": liquidity(df),
+        "order_block": detect_order_block(df),
 
         "zone": premium_discount(df)
 
