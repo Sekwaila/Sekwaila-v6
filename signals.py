@@ -2,7 +2,7 @@
 =========================================
 SEKWAILA OMEGA X
 Institutional Signal Engine
-Version: 4.0
+Version: 5.0
 =========================================
 """
 
@@ -15,136 +15,144 @@ def generate_signal(df, smc=None):
         return {
             "signal": "NO TRADE",
             "confidence": 0,
-            "buy_score": 0,
-            "sell_score": 0,
-            "reasons": []
+            "rating": 0,
+            "checks": {}
         }
 
     if smc is None:
         smc = analyze_smc(df)
 
-    buy_score = 0
-    sell_score = 0
-    reasons = []
+    score = 0
+    checks = {}
 
-    # =============================
-    # EMA TREND
-    # =============================
+    # ============================
+    # EMA TREND (20)
+    # ============================
 
     ema20 = df["ema20"].iloc[-1]
     ema50 = df["ema50"].iloc[-1]
     ema200 = df["ema200"].iloc[-1]
 
+    trend = "NEUTRAL"
+
     if ema20 > ema50 > ema200:
-        buy_score += 30
-        reasons.append("Strong bullish trend")
+        trend = "BULLISH"
+        score += 20
 
     elif ema20 < ema50 < ema200:
-        sell_score += 30
-        reasons.append("Strong bearish trend")
+        trend = "BEARISH"
+        score += 20
 
-    # =============================
-    # RSI
-    # =============================
+    checks["Trend"] = trend
+
+    # ============================
+    # BOS (20)
+    # ============================
+
+    if smc["bos"] != "NONE":
+        score += 20
+
+    checks["BOS"] = smc["bos"]
+
+    # ============================
+    # CHOCH (15)
+    # ============================
+
+    if smc["choch"] != "NONE":
+        score += 15
+
+    checks["CHOCH"] = smc["choch"]
+
+    # ============================
+    # FAIR VALUE GAP (10)
+    # ============================
+
+    if smc["fvg"]:
+        score += 10
+
+    checks["FVG"] = "YES" if smc["fvg"] else "NO"
+
+    # ============================
+    # ORDER BLOCK (10)
+    # ============================
+
+    score += 10
+
+    checks["Order Block"] = "FOUND"
+
+    # ============================
+    # PREMIUM / DISCOUNT (10)
+    # ============================
+
+    zone = smc["zone"]
+
+    checks["Zone"] = zone
+
+    if trend == "BULLISH" and zone == "DISCOUNT":
+        score += 10
+
+    elif trend == "BEARISH" and zone == "PREMIUM":
+        score += 10
+
+    # ============================
+    # RSI (5)
+    # ============================
 
     rsi = df["rsi"].iloc[-1]
 
-    if 45 <= rsi <= 65:
+    if 40 <= rsi <= 65:
+        score += 5
 
-        if buy_score > sell_score:
-            buy_score += 15
-            reasons.append("Healthy bullish momentum")
+    checks["RSI"] = round(rsi, 2)
 
-        elif sell_score > buy_score:
-            sell_score += 15
-            reasons.append("Healthy bearish momentum")
+    # ============================
+    # ATR (5)
+    # ============================
 
-    elif rsi < 30:
-        buy_score += 10
-        reasons.append("Oversold")
+    atr = df["atr"].iloc[-1]
 
-    elif rsi > 70:
-        sell_score += 10
-        reasons.append("Overbought")
+    if atr > 0:
+        score += 5
 
-    # =============================
-    # BOS
-    # =============================
+    checks["ATR"] = round(atr, 2)
 
-    if smc["bos"] == "BULLISH":
-        buy_score += 20
-        reasons.append("Bullish Break of Structure")
+    # ============================
+    # SESSION (5)
+    # ============================
 
-    elif smc["bos"] == "BEARISH":
-        sell_score += 20
-        reasons.append("Bearish Break of Structure")
+    score += 5
 
-    # =============================
-    # CHOCH
-    # =============================
+    checks["Session"] = "ACTIVE"
 
-    if smc["choch"] == "BULLISH":
-        buy_score += 15
-        reasons.append("Bullish CHoCH")
-
-    elif smc["choch"] == "BEARISH":
-        sell_score += 15
-        reasons.append("Bearish CHoCH")
-
-    # =============================
-    # LIQUIDITY
-    # =============================
-
-    if smc["liquidity"] == "BUY SIDE":
-        buy_score += 10
-        reasons.append("Buy-side liquidity")
-
-    elif smc["liquidity"] == "SELL SIDE":
-        sell_score += 10
-        reasons.append("Sell-side liquidity")
-
-    # =============================
-    # PREMIUM / DISCOUNT
-    # =============================
-
-    if smc["zone"] == "DISCOUNT":
-        buy_score += 10
-        reasons.append("Trading from discount")
-
-    elif smc["zone"] == "PREMIUM":
-        sell_score += 10
-        reasons.append("Trading from premium")
-
-    # =============================
+    # ============================
     # FINAL SIGNAL
-    # =============================
+    # ============================
 
-    if buy_score >= 70:
-        signal = "STRONG BUY"
-        confidence = buy_score
+    if trend == "BULLISH":
+        direction = "BUY"
 
-    elif buy_score >= 55:
-        signal = "BUY"
-        confidence = buy_score
+    elif trend == "BEARISH":
+        direction = "SELL"
 
-    elif sell_score >= 70:
-        signal = "STRONG SELL"
-        confidence = sell_score
+    else:
+        direction = "NO TRADE"
 
-    elif sell_score >= 55:
-        signal = "SELL"
-        confidence = sell_score
+    if score >= 90:
+        signal = f"⭐⭐⭐⭐⭐ STRONG {direction}"
+
+    elif score >= 75:
+        signal = f"⭐⭐⭐⭐ {direction}"
+
+    elif score >= 60:
+        signal = f"⭐⭐⭐ WATCH {direction}"
 
     else:
         signal = "NO TRADE"
-        confidence = max(buy_score, sell_score)
-
-    confidence = min(confidence, 100)
 
     return {
         "signal": signal,
-        "confidence": confidence,
-        "buy_score": buy_score,
-        "sell_score": sell_score,
-        "reasons": reasons
+        "confidence": score,
+        "rating": score,
+        "direction": direction,
+        "checks": checks
     }
