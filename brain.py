@@ -187,3 +187,37 @@ AI Rating: {result['rating']}
 """
 
     return response.strip()
+# =========================================
+# COMMAND ROUTER
+# =========================================
+
+def process_command(command, timeframe="15m"):
+    """
+    Route user commands to the correct Brain function.
+    """
+
+    command = command.strip().lower()
+
+    # -------------------------
+    # Scan markets
+    # -------------------------
+    if any(word in command for word in [
+        "scan",
+        "markets",
+        "pairs",
+        "opportunities"
+    ]):
+        return ask_brain("scan", timeframe)
+
+    # -------------------------
+    # Best setup
+    # -------------------------
+    if any(word in command for word in [
+        "best",
+        "strongest",
+        "highest",
+        "top"
+    ]):
+        return ask_brain("best", timeframe)
+
+    return "Command not recognised yet."
