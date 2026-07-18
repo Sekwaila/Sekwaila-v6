@@ -124,3 +124,58 @@ def ai_confidence(df):
     else:
 
         rating = "★☆☆☆☆"
+    # -----------------------------
+    # FINAL AI RESULT
+    # -----------------------------
+
+    return {
+
+        "signal": signal["signal"],
+
+        "confidence": score,
+
+        "rating": rating,
+
+        "direction": direction,
+
+        "entry": round(entry, 2),
+
+        "stop_loss": stop_loss,
+
+        "take_profit": take_profit,
+
+        "buy_score": score if direction == "BUY" else 0,
+
+        "sell_score": score if direction == "SELL" else 0,
+
+        "checks": checks,
+
+        "coach": coach,
+
+        "smc": smc
+
+    }
+
+
+# =========================================
+# TEST
+# =========================================
+
+if __name__ == "__main__":
+
+    from data import get_market_data
+    from indicators import calculate_indicators
+
+    df = get_market_data("BTCUSD", "15m")
+
+    if not df.empty:
+
+        df = calculate_indicators(df)
+
+        result = ai_confidence(df)
+
+        print(result)
+
+    else:
+
+        print("No market data.")
