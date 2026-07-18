@@ -82,3 +82,20 @@ def trade_summary(account_balance,
         )
 
     }
+# ---------------------------------------
+# SIMPLE RISK CALCULATOR
+# ---------------------------------------
+
+def calculate_risk(account_balance,
+                   risk_percent,
+                   entry,
+                   stop_loss,
+                   take_profit):
+
+    return trade_summary(
+        account_balance,
+        risk_percent,
+        entry,
+        stop_loss,
+        take_profit
+      )
