@@ -1,0 +1,54 @@
+# ======================================
+# SEKWAILA OMEGA X
+# Git Ignore
+# ======================================
+
+# Environment Variables
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual Environments
+venv/
+env/
+.venv/
+
+# IDE Files
+.vscode/
+.idea/
+
+# Operating System Files
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/*.log
+
+# Cache
+.cache/
+
+# Python Build
+build/
+dist/
+*.egg-info/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Streamlit
+.streamlit/secrets.toml
+
+# Temporary Files
+*.tmp
+*.bak
+
+# Pytest
+.pytest_cache/
+
+# Coverage
+.coverage
+htmlcov/
