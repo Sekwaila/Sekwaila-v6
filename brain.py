@@ -71,3 +71,25 @@ def scan_markets(timeframe="15m"):
     )
 
     return results
+# =========================================
+# BEST SETUPS
+# =========================================
+
+def best_setups(timeframe="15m", minimum_confidence=75):
+    """
+    Return only high-confidence trading setups.
+    """
+
+    markets = scan_markets(timeframe)
+
+    setups = []
+
+    for market in markets:
+
+        if (
+            market["confidence"] >= minimum_confidence
+            and market["signal"] != "NO TRADE"
+        ):
+            setups.append(market)
+
+    return setups
