@@ -71,112 +71,29 @@ if run:
 
     else:
 
+        st.subheader("📊 AI Trade Summary")
+
         col1, col2, col3 = st.columns(3)
 
-        col1.metric(
-            "Signal",
-            result["signal"]
-        )
-
-        col2.metric(
-            "Confidence",
-            f"{result['confidence']}%"
-        )
-
-        col3.metric(
-            "Entry Price",
-            result["entry"]
-        )
+        col1.metric("Signal", result["signal"])
+        col2.metric("Confidence", f'{result["confidence"]}%')
+        col3.metric("Rating", result["rating"])
 
         st.divider()
 
-        st.subheader("Trade Levels")
+        col4, col5, col6 = st.columns(3)
 
-        a, b = st.columns(2)
+        col4.metric("Entry", result["entry"])
 
-        a.metric(
+        col5.metric(
             "Stop Loss",
-            result["stop_loss"]
+            "--" if result["stop_loss"] is None else result["stop_loss"]
         )
 
-        b.metric(
+        col6.metric(
             "Take Profit",
-            result["take_profit"]
-        )
-
-        st.divider()
-# -----------------------------
-# AI ANALYSIS
-# -----------------------------
-
-        st.subheader("AI Decision")
-
-        c1, c2 = st.columns(2)
-
-        c1.metric(
-            "Buy Score",
-            result["buy_score"]
-        )
-
-        c2.metric(
-            "Sell Score",
-            result["sell_score"]
-        )
-
-        st.divider()
-
-        st.subheader("AI Reasons")
-
-        if result["reasons"]:
-
-            for reason in result["reasons"]:
-                st.success(reason)
-
-        else:
-
-            st.info("No strong confirmation found.")
-
-        st.divider()
-
-# -----------------------------
-# SMART MONEY CONCEPTS
-# -----------------------------
-
-        st.subheader("Smart Money Concepts")
-
-        smc = result["smc"]
-
-        x1, x2 = st.columns(2)
-
-        x1.metric(
-            "Break of Structure",
-            smc["bos"]
-        )
-
-        x2.metric(
-            "Change of Character",
-            smc["choch"]
-        )
-
-        y1, y2 = st.columns(2)
-
-        y1.metric(
-            "Liquidity",
-            smc["liquidity"]
-        )
-
-        y2.metric(
-            "Premium / Discount",
-            smc["zone"]
-        )
-
-        st.write("### Order Block")
-
-        st.json(smc["order_block"])
-
-        st.write("### Fair Value Gap")
-
-        st.write("Detected" if smc["fvg"] else "Not Detected")
+            "--" if result["take_profit"] is None else result["take_profit"]
+        )    
 # =========================================
 # FOOTER
 # =========================================
