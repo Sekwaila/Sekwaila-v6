@@ -73,7 +73,7 @@ def analyze_market(symbol, timeframe="15m"):
         if df.empty:
             return None
         df = calculate_indicators(df)
-        result = ai_confidence(df)
+        result = ai_confidence(df, symbol=symbol)
         # Ensure required keys exist
         required_keys = ["signal", "confidence", "entry", "stop_loss", "take_profit", "rating"]
         for key in required_keys:
