@@ -2,7 +2,7 @@
 =========================================
 SEKWAILA OMEGA X
 Institutional AI Engine
-Version: 5.0
+Version: 5.1 (numeric rating, fixed dashboard compatibility)
 =========================================
 """
 
@@ -21,7 +21,7 @@ def ai_confidence(df):
         return {
             "signal": "NO TRADE",
             "confidence": 0,
-            "rating": "☆☆☆☆☆",
+            "rating": 0,
             "direction": "NONE",
             "entry": None,
             "stop_loss": None,
@@ -73,6 +73,7 @@ def ai_confidence(df):
 
     if checks["Session"] == "ACTIVE":
         coach.append("Trading session is active.")
+
     # -----------------------------
     # PRICE LEVELS
     # -----------------------------
@@ -102,28 +103,14 @@ def ai_confidence(df):
         take_profit = None
 
     # -----------------------------
-    # STAR RATING
+    # NUMERIC RATING (0-5 scale, derived from score)
+    # Kept as a number so it works with the dashboard's
+    # rating_to_stars() converter and Telegram formatting —
+    # do NOT change this back to a pre-formatted star string.
     # -----------------------------
 
-    if score >= 90:
+    rating = round(score / 20, 1)
 
-        rating = "★★★★★"
-
-    elif score >= 80:
-
-        rating = "★★★★☆"
-
-    elif score >= 70:
-
-        rating = "★★★☆☆"
-
-    elif score >= 60:
-
-        rating = "★★☆☆☆"
-
-    else:
-
-        rating = "★☆☆☆☆"
     # -----------------------------
     # FINAL AI RESULT
     # -----------------------------
