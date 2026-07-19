@@ -7,18 +7,17 @@ from brain import analyze_market
 # =========================================
 # CONFIG – environment variables
 # =========================================
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN="8739054815:AAHyhvWtJ8l4zwZk8v7hTtnytXrMVAfQiqk ")
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 
-# Local testing override (remove in production)
-# TELEGRAM_TOKEN = "8739054815:AAHyhvWtJ8l4zwZk8v7hTtnytXrMVAfQiqk"
-# CHAT_ID = "5870791602"
+# Set these in Railway's environment variables, not here.
+# Do NOT hardcode your token in this file, even commented out.
 
 SYMBOLS = ["XAUUSD", "EURUSD", "GBPUSD", "BTCUSD", "USDJPY", "US30", "SP500"]
 TIMEFRAME = "15m"
 CHECK_INTERVAL_MINUTES = 5
 
-# In‑memory dedup – survives as long as the process runs.
+# In-memory dedup – survives as long as the process runs.
 # On Railway restart, it resets, which may send one extra alert per symbol.
 # That's acceptable – we prefer simplicity over persistent storage.
 last_alerted = {}
@@ -27,6 +26,10 @@ last_alerted = {}
 # HELPERS
 # =========================================
 def rating_to_stars(rating):
+    try:
+        rating = float(rating)
+    except Exception:
+        rating = 0
     if rating >= 4.5:
         return "⭐⭐⭐⭐⭐"
     elif rating >= 3.5:
@@ -62,24 +65,30 @@ def run_analysis():
     global last_alerted
     try:
         print(f"[{time.ctime()}] Scanning {len(SYMBOLS)} symbols...")
-        
+
         for symbol in SYMBOLS:
             result = analyze_market(symbol, TIMEFRAME)
             if result is None:
                 continue
-            
-            signal = result.get("signal", "HOLD")
-            
+
+            # Use "direction" for filtering/dedup — it's always a clean
+            # "BUY" / "SELL" / "NO TRADE" string. "signal" is the starred
+            # display version (e.g. "⭐⭐⭐⭐⭐ STRONG BUY") — good for the
+            # Telegram message text, but not safe to compare against
+            # literal "BUY"/"SELL".
+            direction = result.get("direction", "NO TRADE")
+            display_signal = result.get("signal", "NO TRADE")
+
             # Only alert on actionable signals – ignore everything else
-            if signal not in ["BUY", "SELL"]:
-                print(f"  ℹ️ {symbol}: {signal} – skipping")
+            if direction not in ["BUY", "SELL"]:
+                print(f"  ℹ️ {symbol}: {direction} – skipping")
                 continue
-            
-            # Dedup: only send if signal changed
-            if last_alerted.get(symbol) == signal:
-                print(f"  ℹ️ {symbol}: signal unchanged ({signal}) – skip")
+
+            # Dedup: only send if direction changed since last alert
+            if last_alerted.get(symbol) == direction:
+                print(f"  ℹ️ {symbol}: direction unchanged ({direction}) – skip")
                 continue
-            
+
             # Build message
             confidence = result.get("confidence", 0)
             rating = result.get("rating") or 0
@@ -93,7 +102,7 @@ def run_analysis():
 
 *Symbol:* {symbol}
 *Timeframe:* {TIMEFRAME}
-*Signal:* {signal}
+*Signal:* {display_signal}
 *Confidence:* {confidence}%
 *Rating:* {rating} ({stars})
 
@@ -101,13 +110,13 @@ def run_analysis():
 *Stop Loss:* {sl}
 *Take Profit:* {tp}
             """
-            
+
             if send_telegram_alert(msg):
-                print(f"  ✅ Alert sent for {symbol} ({signal})")
-                last_alerted[symbol] = signal
+                print(f"  ✅ Alert sent for {symbol} ({direction})")
+                last_alerted[symbol] = direction
             else:
                 print(f"  ❌ Failed for {symbol}")
-    
+
     except Exception as e:
         print(f"❌ CRITICAL: run_analysis() crashed: {e}")
         # We don't re-raise – the worker keeps running
@@ -119,15 +128,15 @@ if __name__ == "__main__":
     print("🚀 SEKWAILA OMEGA X Worker started")
     print(f"   Monitoring: {', '.join(SYMBOLS)}")
     print(f"   Interval: {CHECK_INTERVAL_MINUTES} min")
-    print(f"   Dedup: in‑memory (resets on restart)")
+    print("   Dedup: in-memory (resets on restart)")
     print("-" * 40)
-    
+
     # Run once immediately
     run_analysis()
-    
+
     # Schedule
     schedule.every(CHECK_INTERVAL_MINUTES).minutes.do(run_analysis)
-    
+
     while True:
         schedule.run_pending()
         time.sleep(1)
