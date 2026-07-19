@@ -2,7 +2,7 @@
 =========================================
 SEKWAILA OMEGA X
 Institutional AI Engine
-Version: 5.1 (numeric rating, fixed dashboard compatibility)
+Version: 5.2 (symbol-aware session detection passthrough)
 =========================================
 """
 
@@ -14,7 +14,7 @@ from smc import analyze_smc
 # AI DECISION ENGINE
 # =========================================
 
-def ai_confidence(df):
+def ai_confidence(df, symbol=None):
 
     if df.empty:
 
@@ -38,7 +38,7 @@ def ai_confidence(df):
 
     smc = analyze_smc(df)
 
-    signal = generate_signal(df, smc)
+    signal = generate_signal(df, smc, symbol=symbol)
 
     score = signal["confidence"]
 
@@ -71,8 +71,11 @@ def ai_confidence(df):
     elif checks["Zone"] == "PREMIUM":
         coach.append("Price is trading in a premium zone.")
 
-    if checks["Session"] == "ACTIVE":
-        coach.append("Trading session is active.")
+    if checks["Session"] in ("OVERLAP", "LONDON", "NEW YORK"):
+        coach.append(f"Trading session is active ({checks['Session']}).")
+
+    elif checks["Session"] == "CLOSED":
+        coach.append("Market is currently closed (weekend).")
 
     # -----------------------------
     # PRICE LEVELS
@@ -159,7 +162,7 @@ if __name__ == "__main__":
 
         df = calculate_indicators(df)
 
-        result = ai_confidence(df)
+        result = ai_confidence(df, symbol="BTCUSD")
 
         print(result)
 
