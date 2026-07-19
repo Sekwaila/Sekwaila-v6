@@ -3,52 +3,40 @@ import requests
 from brain import analyze_market
 
 # =========================================
-# TELEGRAM ALERT FUNCTION
+# TELEGRAM (HARDCODED – NO SECRETS)
 # =========================================
 def send_telegram_alert(message):
     try:
-        token = st.secrets["telegram"]["bot_token=8739054815:AAF3ZCbjRhTB91TX26PnpuGyAte2wfdnTfs"]
-        chat_id = st.secrets["telegram"]["chat_id= 5870791602 "]
+        token = " 8739054815:AAF3ZCbjRhTB91TX26PnpuGyAte2wfdnTfs"   # <-- PASTE YOUR REAL TOKEN
+        chat_id = "5870791602"
         url = f"https://api.telegram.org/bot{token}/sendMessage"
-        payload = {
-            "chat_id": chat_id,
-            "text": message,
-            "parse_mode": "Markdown"
-        }
+        payload = {"chat_id": chat_id, "text": message, "parse_mode": "Markdown"}
         r = requests.post(url, json=payload, timeout=5)
         return r.status_code == 200
     except Exception as e:
-        st.warning(f"Telegram alert failed: {e}")
+        st.warning(f"Telegram error: {e}")
         return False
 
 # =========================================
-# HELPER: Convert numeric rating to stars
+# RATING TO STARS – HANDLES ANYTHING
 # =========================================
 def rating_to_stars(rating):
+    # If rating is a dict, try to get 'score' or 'rating' key
+    if isinstance(rating, dict):
+        rating = rating.get("score") or rating.get("rating") or 0
+    # Convert to float, if fails -> 0
     try:
         rating = float(rating)
     except:
         rating = 0
-    if rating >= 4.5:
-        return "⭐⭐⭐⭐⭐"
-    elif rating >= 3.5:
-        return "⭐⭐⭐⭐"
-    elif rating >= 2.5:
-        return "⭐⭐⭐"
-    elif rating >= 1.5:
-        return "⭐⭐"
-    else:
-        return "⭐"
+    # Clamp between 0 and 5, then return stars
+    stars = min(5, max(0, int(rating / 1.5 + 0.5)))
+    return "⭐" * stars
 
 # =========================================
-# PAGE CONFIG
+# PAGE SETUP
 # =========================================
-st.set_page_config(
-    page_title="SEKWAILA OMEGA X",
-    page_icon="📈",
-    layout="wide"
-)
-
+st.set_page_config(page_title="SEKWAILA OMEGA X", page_icon="📈", layout="wide")
 st.title("📈 SEKWAILA OMEGA X")
 st.caption("Institutional AI Trading Dashboard")
 st.divider()
@@ -57,28 +45,13 @@ st.divider()
 # SIDEBAR
 # =========================================
 st.sidebar.header("Market Settings")
-
-symbol = st.sidebar.selectbox(
-    "Symbol",
-    ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY", "BTCUSD", "US30", "SP500"]
-)
-
-timeframe = st.sidebar.selectbox(
-    "Timeframe",
-    ["5m", "15m", "30m", "1h", "1d"],
-    index=1
-)
-
-# Toggle: allow manual alerts or not
+symbol = st.sidebar.selectbox("Symbol", ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY", "BTCUSD", "US30", "SP500"])
+timeframe = st.sidebar.selectbox("Timeframe", ["5m", "15m", "30m", "1h", "1d"], index=1)
 alert_on_click = st.sidebar.checkbox("📨 Send alert on click", value=True)
-
 st.sidebar.divider()
-
 run = st.sidebar.button("🚀 Analyze Market")
 
-# =========================================
-# SESSION STATE INIT (for duplicate suppression)
-# =========================================
+# SESSION STATE
 if "last_alerted" not in st.session_state:
     st.session_state.last_alerted = {}
 
@@ -92,40 +65,37 @@ if run:
     if result is None:
         st.error("No market data available.")
     else:
-        # ----- SAFELY EXTRACT VALUES (coerce None to 0 or "--") -----
+        # SAFE EXTRACTION (with fallbacks)
         signal = result.get("signal", "HOLD")
         confidence = result.get("confidence", 0)
-        rating = result.get("rating") or 0           # <-- fixes None bug
+        rating_val = result.get("rating", 0)  # could be dict, string, number
         entry = result.get("entry", "--")
         sl = result.get("stop_loss", "--") or "--"
         tp = result.get("take_profit", "--") or "--"
-        stars = rating_to_stars(rating)              # now safe
+        stars = rating_to_stars(rating_val)   # handles everything
 
-        # ----- Display metrics (use the coerced rating) -----
+        # DISPLAY
         st.subheader("📊 AI Trade Summary")
         col1, col2, col3 = st.columns(3)
         col1.metric("Signal", signal)
         col2.metric("Confidence", f"{confidence}%")
-        col3.metric("Rating", rating)                # <-- now uses int/float, not None
+        col3.metric("Rating", rating_val if isinstance(rating_val, (int, float)) else "N/A")
 
         st.divider()
-
         col4, col5, col6 = st.columns(3)
         col4.metric("Entry", entry)
         col5.metric("Stop Loss", sl)
         col6.metric("Take Profit", tp)
 
-        # ----- Build alert message (uses same coerced values) -----
+        # ALERT MESSAGE
         alert_msg = f"""
 🚨 *NEW AI TRADE SIGNAL* 🚨
 
 *Symbol:* {symbol}
 *Timeframe:* {timeframe}
-
 *Signal:* {signal}
 *Confidence:* {confidence}%
-*Rating:* {rating} ({stars})
-
+*Rating:* {rating_val} ({stars})
 *Entry:* {entry}
 *Stop Loss:* {sl}
 *Take Profit:* {tp}
@@ -133,29 +103,22 @@ if run:
 Dashboard: sekwaila-omega-x.streamlit.app
         """
 
-        # ----- Deduplication: only send if signal changed -----
-        should_send = False
+        # DEDUP & SEND
         key = f"{symbol}_{timeframe}"
         if alert_on_click:
-            if key not in st.session_state.last_alerted:
-                should_send = True
-            elif st.session_state.last_alerted[key] != signal:
-                should_send = True
-
-            if should_send:
-                success = send_telegram_alert(alert_msg)
-                if success:
+            if key not in st.session_state.last_alerted or st.session_state.last_alerted[key] != signal:
+                if send_telegram_alert(alert_msg):
                     st.success("📲 Alert sent to Telegram!")
                     st.session_state.last_alerted[key] = signal
                 else:
-                    st.warning("⚠️ Telegram alert failed – check secrets.")
+                    st.warning("⚠️ Telegram alert failed.")
             else:
-                st.info("ℹ️ Signal unchanged – no duplicate alert sent.")
+                st.info("ℹ️ Signal unchanged – no duplicate.")
         else:
-            st.info("ℹ️ Manual alerts are disabled (checkbox in sidebar).")
+            st.info("ℹ️ Manual alerts disabled.")
 
 # =========================================
-# FOOTER
+# FOOTER & REFRESH
 # =========================================
 st.divider()
 st.caption("🚀 SEKWAILA OMEGA X")
@@ -163,8 +126,5 @@ st.caption("Institutional AI Trading Dashboard")
 st.caption("Version 3.0")
 st.caption("Developed by Johnny Sekwaila")
 
-# =========================================
-# MANUAL REFRESH BUTTON
-# =========================================
 if st.sidebar.button("🔄 Refresh"):
     st.rerun()
