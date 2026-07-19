@@ -7,7 +7,7 @@ from brain import analyze_market
 # =========================================
 # CONFIG – environment variables
 # =========================================
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN= 8739054815:AAF3ZCbjRhTB91TX26PnpuGyAte2wfdnTfs ")
 CHAT_ID = os.getenv("CHAT_ID")
 
 # Local testing override (remove in production)
