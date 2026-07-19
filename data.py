@@ -2,10 +2,11 @@
 =========================================
 SEKWAILA OMEGA X
 Market Data Module
-Version: 4.0
+Version: 4.1 (cached + retry/backoff)
 =========================================
 """
 
+import time
 import pandas as pd
 import yfinance as yf
 
@@ -45,88 +46,121 @@ INTERVALS = {
 
 
 # =========================================
-# DOWNLOAD MARKET DATA
+# SIMPLE TTL CACHE (shared across callers —
+# works for both the Streamlit dashboard and
+# the Railway worker, since it's plain Python
+# and doesn't depend on st.cache_data)
 # =========================================
 
-def get_market_data(symbol="BTCUSD", timeframe="15m", bars=300):
+_CACHE = {}
+_CACHE_TTL = 60  # seconds — raise this if you're still getting rate-limited
+
+
+# =========================================
+# DOWNLOAD MARKET DATA (cached + retry/backoff)
+# =========================================
+
+def get_market_data(symbol="BTCUSD", timeframe="15m", bars=300, retries=3):
 
     ticker = SYMBOLS.get(symbol, symbol)
     interval = INTERVALS.get(timeframe, "15m")
+    cache_key = f"{ticker}_{interval}"
+    now = time.time()
 
-    try:
+    # Serve from cache if still fresh — avoids hammering Yahoo on
+    # every Streamlit rerun or every worker scan cycle
+    if cache_key in _CACHE:
+        cached_df, cached_time = _CACHE[cache_key]
+        if now - cached_time < _CACHE_TTL:
+            print(f"Using cached data for {cache_key} ({int(now - cached_time)}s old)")
+            return cached_df
 
-        print("=" * 50)
-        print("SEKWAILA DATA ENGINE")
-        print("Ticker:", ticker)
-        print("Interval:", interval)
-        print("=" * 50)
+    for attempt in range(retries):
+        try:
+            print("=" * 50)
+            print("SEKWAILA DATA ENGINE")
+            print("Ticker:", ticker)
+            print("Interval:", interval)
+            print(f"Attempt {attempt + 1}/{retries}")
+            print("=" * 50)
 
-        df = yf.download(
-            tickers=ticker,
-            period="60d",
-            interval=interval,
-            auto_adjust=True,
-            progress=False,
-            threads=False,
-            prepost=True,
-        )
+            df = yf.download(
+                tickers=ticker,
+                period="60d",
+                interval=interval,
+                auto_adjust=True,
+                progress=False,
+                threads=False,
+                prepost=True,
+            )
 
-        if df is None or df.empty:
-            print("Yahoo Finance returned NO DATA.")
-            return pd.DataFrame()
-
-        df = df.reset_index()
-
-        # Flatten MultiIndex columns if present
-        if isinstance(df.columns, pd.MultiIndex):
-            df.columns = [c[0] for c in df.columns]
-
-        df.columns = [str(c).lower() for c in df.columns]
-
-        # Rename first column to datetime
-        if "date" in df.columns:
-            df.rename(columns={"date": "datetime"}, inplace=True)
-
-        if "datetime" not in df.columns:
-            first = df.columns[0]
-            df.rename(columns={first: "datetime"}, inplace=True)
-
-        # Ensure required columns exist
-        required = ["datetime", "open", "high", "low", "close"]
-
-        for col in required:
-            if col not in df.columns:
-                print(f"Missing column: {col}")
+            if df is None or df.empty:
+                print("Yahoo Finance returned NO DATA.")
+                if attempt < retries - 1:
+                    wait = 5 * (attempt + 1)
+                    print(f"Retrying in {wait}s...")
+                    time.sleep(wait)
+                    continue
                 return pd.DataFrame()
 
-        if "volume" not in df.columns:
-            df["volume"] = 0
+            df = df.reset_index()
 
-        df = df[
-            [
-                "datetime",
-                "open",
-                "high",
-                "low",
-                "close",
-                "volume",
+            # Flatten MultiIndex columns if present
+            if isinstance(df.columns, pd.MultiIndex):
+                df.columns = [c[0] for c in df.columns]
+
+            df.columns = [str(c).lower() for c in df.columns]
+
+            # Rename first column to datetime
+            if "date" in df.columns:
+                df.rename(columns={"date": "datetime"}, inplace=True)
+
+            if "datetime" not in df.columns:
+                first = df.columns[0]
+                df.rename(columns={first: "datetime"}, inplace=True)
+
+            # Ensure required columns exist
+            required = ["datetime", "open", "high", "low", "close"]
+
+            for col in required:
+                if col not in df.columns:
+                    print(f"Missing column: {col}")
+                    return pd.DataFrame()
+
+            if "volume" not in df.columns:
+                df["volume"] = 0
+
+            df = df[
+                [
+                    "datetime",
+                    "open",
+                    "high",
+                    "low",
+                    "close",
+                    "volume",
+                ]
             ]
-        ]
 
-        df = df.tail(bars).reset_index(drop=True)
+            df = df.tail(bars).reset_index(drop=True)
 
-        print(f"Downloaded {len(df)} candles successfully.")
+            print(f"Downloaded {len(df)} candles successfully.")
 
-        return df
+            _CACHE[cache_key] = (df, now)
+            return df
 
-    except Exception as e:
+        except Exception as e:
+            print("=" * 50)
+            print("DATA DOWNLOAD ERROR")
+            print(e)
+            print("=" * 50)
+            if attempt < retries - 1:
+                wait = 5 * (attempt + 1)
+                print(f"Retrying in {wait}s...")
+                time.sleep(wait)
+                continue
+            return pd.DataFrame()
 
-        print("=" * 50)
-        print("DATA DOWNLOAD ERROR")
-        print(e)
-        print("=" * 50)
-
-        return pd.DataFrame()
+    return pd.DataFrame()
 
 
 # =========================================
