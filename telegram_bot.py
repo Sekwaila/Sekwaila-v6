@@ -34,8 +34,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")   # optional – if set, alerts go here
+BOT_TOKEN = os.getenv("8739054815:AAGCIGmES43JxGuF4TfBotPRSD-EOxA6SCM")
+CHAT_ID = os.getenv("5870791602")   # optional – if set, alerts go here
 
 # In-memory tracker to prevent duplicate alerts
 # key: symbol, value: last signal (e.g. "BUY", "SELL", "NO TRADE")
