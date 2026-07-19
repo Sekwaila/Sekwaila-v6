@@ -2,14 +2,79 @@
 =========================================
 SEKWAILA OMEGA X
 Institutional Signal Engine
-Version: 5.0
+Version: 5.3 (symbol-aware session detection)
 =========================================
 """
 
+from datetime import datetime, timezone
 from smc import analyze_smc
 
 
-def generate_signal(df, smc=None):
+# ============================
+# SESSION / KILLZONE DETECTION
+#
+# All times here are UTC — correct regardless of server location
+# or your local SAST timezone. Crypto (BTCUSD, ETHUSD) trades
+# 24/7, so it never gets marked "CLOSED" for the weekend the way
+# forex/US30/SP500 do.
+#
+# Reference (Northern Hemisphere summer / DST in effect):
+#   London session:    07:00-16:00 UTC  -> 09:00-18:00 SAST
+#   New York session:  16:00-21:00 UTC  -> 18:00-23:00 SAST
+#   Overlap (best):    12:00-16:00 UTC  -> 14:00-18:00 SAST
+#   Asian session:     21:00-07:00 UTC  -> 23:00-09:00 SAST
+# In Northern Hemisphere winter, London/NY windows shift back
+# by about 1 hour in UTC terms.
+# ============================
+
+CRYPTO_SYMBOLS = {"BTCUSD", "ETHUSD"}
+
+
+def get_current_session(symbol=None):
+    """
+    Returns one of: "OVERLAP", "LONDON", "NEW YORK", "ASIAN", "CLOSED"
+    based on the current UTC time and day of week.
+
+    Forex/CFD/index instruments are closed on weekends. Crypto
+    (BTCUSD, ETHUSD) trades 24/7, so weekend "CLOSED" never
+    applies to it — it still gets a session label based on time
+    of day (liquidity does still ebb and flow with global
+    regions even though the market never technically shuts).
+    """
+    now = datetime.now(timezone.utc)
+    hour = now.hour
+    is_crypto = symbol in CRYPTO_SYMBOLS
+
+    if 12 <= hour < 16:
+        session = "OVERLAP"
+    elif 7 <= hour < 12:
+        session = "LONDON"
+    elif 16 <= hour < 21:
+        session = "NEW YORK"
+    else:
+        session = "ASIAN"
+
+    if now.weekday() >= 5 and not is_crypto:
+        return "CLOSED"
+
+    return session
+
+
+def session_score(session):
+    """
+    Points awarded based on session quality. Overlap gets full
+    marks (highest liquidity), single sessions get partial credit,
+    Asian/closed get none — thin liquidity produces less reliable
+    signals.
+    """
+    if session == "OVERLAP":
+        return 5
+    elif session in ("LONDON", "NEW YORK"):
+        return 3
+    return 0
+
+
+def generate_signal(df, smc=None, symbol=None):
 
     if df.empty:
         return {
@@ -73,12 +138,21 @@ def generate_signal(df, smc=None):
     checks["FVG"] = "YES" if smc["fvg"] else "NO"
 
     # ============================
-    # ORDER BLOCK (10)
+    # ORDER BLOCK (10) — real detection from smc.py, only
+    # credited when it agrees with the current trend.
     # ============================
 
-    score += 10
+    order_block = smc.get("order_block", {"type": "None", "level": 0, "direction": "N/A"})
+    ob_direction = order_block.get("direction", "N/A")
+    ob_found = order_block.get("type", "None") != "None"
 
-    checks["Order Block"] = "FOUND"
+    if ob_found and (
+        (trend == "BULLISH" and ob_direction == "BUY") or
+        (trend == "BEARISH" and ob_direction == "SELL")
+    ):
+        score += 10
+
+    checks["Order Block"] = order_block.get("type", "None")
 
     # ============================
     # PREMIUM / DISCOUNT (10)
@@ -117,12 +191,14 @@ def generate_signal(df, smc=None):
     checks["ATR"] = round(atr, 2)
 
     # ============================
-    # SESSION (5)
+    # SESSION (5) — symbol-aware. Crypto never shows CLOSED
+    # for the weekend; other instruments correctly do.
     # ============================
 
-    score += 5
+    session = get_current_session(symbol=symbol)
+    score += session_score(session)
 
-    checks["Session"] = "ACTIVE"
+    checks["Session"] = session
 
     # ============================
     # FINAL SIGNAL
