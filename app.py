@@ -25,6 +25,10 @@ def send_telegram_alert(message):
 # HELPER: Convert numeric rating to stars
 # =========================================
 def rating_to_stars(rating):
+    try:
+        rating = float(rating)
+    except:
+        rating = 0
     if rating >= 4.5:
         return "⭐⭐⭐⭐⭐"
     elif rating >= 3.5:
