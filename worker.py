@@ -7,8 +7,8 @@ from brain import analyze_market
 # =========================================
 # CONFIG – environment variables
 # =========================================
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-CHAT_ID = os.getenv("CHAT_ID")
+TELEGRAM_TOKEN = os.getenv("8739054815:AAGCIGmES43JxGuF4TfBotPRSD-EOxA6SCM")
+CHAT_ID = os.getenv("5870791602")
 
 # Set these in Railway's environment variables, not here.
 # Do NOT hardcode your token in this file, even commented out.
