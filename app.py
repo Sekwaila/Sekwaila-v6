@@ -7,8 +7,8 @@ from brain import analyze_market
 # =========================================
 def send_telegram_alert(message):
     try:
-        token = st.secrets["telegram"]["bot_token"]
-        chat_id = st.secrets["telegram"]["chat_id"]
+        token = st.secrets["telegram"]["bot_token=8739054815:AAF3ZCbjRhTB91TX26PnpuGyAte2wfdnTfs"]
+        chat_id = st.secrets["telegram"]["chat_id= 5870791602 "]
         url = f"https://api.telegram.org/bot{token}/sendMessage"
         payload = {
             "chat_id": chat_id,
