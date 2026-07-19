@@ -2,7 +2,7 @@
 =========================================
 SEKWAILA OMEGA X
 Institutional Signal Engine
-Version: 5.3 (symbol-aware session detection)
+Version: 5.4 (RSI hard veto on overbought/oversold entries)
 =========================================
 """
 
@@ -12,35 +12,13 @@ from smc import analyze_smc
 
 # ============================
 # SESSION / KILLZONE DETECTION
-#
-# All times here are UTC — correct regardless of server location
-# or your local SAST timezone. Crypto (BTCUSD, ETHUSD) trades
-# 24/7, so it never gets marked "CLOSED" for the weekend the way
-# forex/US30/SP500 do.
-#
-# Reference (Northern Hemisphere summer / DST in effect):
-#   London session:    07:00-16:00 UTC  -> 09:00-18:00 SAST
-#   New York session:  16:00-21:00 UTC  -> 18:00-23:00 SAST
-#   Overlap (best):    12:00-16:00 UTC  -> 14:00-18:00 SAST
-#   Asian session:     21:00-07:00 UTC  -> 23:00-09:00 SAST
-# In Northern Hemisphere winter, London/NY windows shift back
-# by about 1 hour in UTC terms.
+# (unchanged from previous version — see comments there)
 # ============================
 
 CRYPTO_SYMBOLS = {"BTCUSD", "ETHUSD"}
 
 
 def get_current_session(symbol=None):
-    """
-    Returns one of: "OVERLAP", "LONDON", "NEW YORK", "ASIAN", "CLOSED"
-    based on the current UTC time and day of week.
-
-    Forex/CFD/index instruments are closed on weekends. Crypto
-    (BTCUSD, ETHUSD) trades 24/7, so weekend "CLOSED" never
-    applies to it — it still gets a session label based on time
-    of day (liquidity does still ebb and flow with global
-    regions even though the market never technically shuts).
-    """
     now = datetime.now(timezone.utc)
     hour = now.hour
     is_crypto = symbol in CRYPTO_SYMBOLS
@@ -61,17 +39,26 @@ def get_current_session(symbol=None):
 
 
 def session_score(session):
-    """
-    Points awarded based on session quality. Overlap gets full
-    marks (highest liquidity), single sessions get partial credit,
-    Asian/closed get none — thin liquidity produces less reliable
-    signals.
-    """
     if session == "OVERLAP":
         return 5
     elif session in ("LONDON", "NEW YORK"):
         return 3
     return 0
+
+
+# ============================
+# RSI VETO THRESHOLDS
+#
+# Unlike the old soft filter (which only shaved a few points),
+# these now BLOCK a signal outright. Buying when RSI is already
+# deep overbought — or selling when it's deep oversold — means
+# chasing a move that's likely already extended. This is the
+# fix for the original problem: BTCUSD at RSI 71+ still counting
+# as a valid BUY.
+# ============================
+
+RSI_OVERBOUGHT_VETO = 70
+RSI_OVERSOLD_VETO = 30
 
 
 def generate_signal(df, smc=None, symbol=None):
@@ -81,6 +68,7 @@ def generate_signal(df, smc=None, symbol=None):
             "signal": "NO TRADE",
             "confidence": 0,
             "rating": 0,
+            "direction": "NONE",
             "checks": {}
         }
 
@@ -138,8 +126,7 @@ def generate_signal(df, smc=None, symbol=None):
     checks["FVG"] = "YES" if smc["fvg"] else "NO"
 
     # ============================
-    # ORDER BLOCK (10) — real detection from smc.py, only
-    # credited when it agrees with the current trend.
+    # ORDER BLOCK (10)
     # ============================
 
     order_block = smc.get("order_block", {"type": "None", "level": 0, "direction": "N/A"})
@@ -169,7 +156,7 @@ def generate_signal(df, smc=None, symbol=None):
         score += 10
 
     # ============================
-    # RSI (5)
+    # RSI (5 points for healthy range, PLUS a hard veto)
     # ============================
 
     rsi = df["rsi"].iloc[-1]
@@ -191,8 +178,7 @@ def generate_signal(df, smc=None, symbol=None):
     checks["ATR"] = round(atr, 2)
 
     # ============================
-    # SESSION (5) — symbol-aware. Crypto never shows CLOSED
-    # for the weekend; other instruments correctly do.
+    # SESSION (5)
     # ============================
 
     session = get_current_session(symbol=symbol)
@@ -201,7 +187,7 @@ def generate_signal(df, smc=None, symbol=None):
     checks["Session"] = session
 
     # ============================
-    # FINAL SIGNAL
+    # DIRECTION (before RSI veto, so we know which side to check)
     # ============================
 
     if trend == "BULLISH":
@@ -213,17 +199,40 @@ def generate_signal(df, smc=None, symbol=None):
     else:
         direction = "NO TRADE"
 
-    if score >= 90:
-        signal = f"⭐⭐⭐⭐⭐ STRONG {direction}"
+    # ============================
+    # RSI HARD VETO — overrides everything above.
+    # A BUY setup with RSI already overbought, or a SELL setup
+    # with RSI already oversold, gets killed outright rather
+    # than just scored lower. This stops the engine from
+    # chasing an already-extended move.
+    # ============================
 
-    elif score >= 75:
-        signal = f"⭐⭐⭐⭐ {direction}"
+    rsi_veto = False
 
-    elif score >= 60:
-        signal = f"⭐⭐⭐ WATCH {direction}"
+    if direction == "BUY" and rsi > RSI_OVERBOUGHT_VETO:
+        rsi_veto = True
+    elif direction == "SELL" and rsi < RSI_OVERSOLD_VETO:
+        rsi_veto = True
+
+    checks["RSI Veto"] = "YES" if rsi_veto else "NO"
+
+    if rsi_veto:
+        direction = "NO TRADE"
+        signal = "NO TRADE"
 
     else:
-        signal = "NO TRADE"
+        if score >= 90:
+            signal = f"⭐⭐⭐⭐⭐ STRONG {direction}"
+
+        elif score >= 75:
+            signal = f"⭐⭐⭐⭐ {direction}"
+
+        elif score >= 60:
+            signal = f"⭐⭐⭐ WATCH {direction}"
+
+        else:
+            direction = "NO TRADE"
+            signal = "NO TRADE"
 
     return {
         "signal": signal,
