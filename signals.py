@@ -2,242 +2,369 @@
 =========================================
 SEKWAILA OMEGA X
 Institutional Signal Engine
-Version: 5.4 (RSI hard veto on overbought/oversold entries)
+Version: 6.0
+Dual Buy/Sell Scoring Engine
 =========================================
 """
 
 from datetime import datetime, timezone
 from smc import analyze_smc
 
-
-# ============================
-# SESSION / KILLZONE DETECTION
-# (unchanged from previous version — see comments there)
-# ============================
+# =========================================
+# SESSIONS
+# =========================================
 
 CRYPTO_SYMBOLS = {"BTCUSD", "ETHUSD"}
 
+BUY_THRESHOLD = 70
+SELL_THRESHOLD = 70
+MIN_SCORE_GAP = 15
+
+RSI_OVERBOUGHT = 70
+RSI_OVERSOLD = 30
+
+
+# =========================================
+# SESSION DETECTION
+# =========================================
 
 def get_current_session(symbol=None):
+
     now = datetime.now(timezone.utc)
+
     hour = now.hour
-    is_crypto = symbol in CRYPTO_SYMBOLS
+
+    crypto = symbol in CRYPTO_SYMBOLS
 
     if 12 <= hour < 16:
         session = "OVERLAP"
+
     elif 7 <= hour < 12:
         session = "LONDON"
+
     elif 16 <= hour < 21:
         session = "NEW YORK"
+
     else:
         session = "ASIAN"
 
-    if now.weekday() >= 5 and not is_crypto:
+    if now.weekday() >= 5 and not crypto:
         return "CLOSED"
 
     return session
 
 
-def session_score(session):
+def session_points(session):
+
     if session == "OVERLAP":
         return 5
+
     elif session in ("LONDON", "NEW YORK"):
         return 3
+
     return 0
 
 
-# ============================
-# RSI VETO THRESHOLDS
-#
-# Unlike the old soft filter (which only shaved a few points),
-# these now BLOCK a signal outright. Buying when RSI is already
-# deep overbought — or selling when it's deep oversold — means
-# chasing a move that's likely already extended. This is the
-# fix for the original problem: BTCUSD at RSI 71+ still counting
-# as a valid BUY.
-# ============================
-
-RSI_OVERBOUGHT_VETO = 70
-RSI_OVERSOLD_VETO = 30
-
+# =========================================
+# MAIN ENGINE
+# =========================================
 
 def generate_signal(df, smc=None, symbol=None):
 
     if df.empty:
+
         return {
+
             "signal": "NO TRADE",
+
             "confidence": 0,
+
             "rating": 0,
-            "direction": "NONE",
+
+            "direction": "NO TRADE",
+
+            "buy_score": 0,
+
+            "sell_score": 0,
+
             "checks": {}
+
         }
 
     if smc is None:
+
         smc = analyze_smc(df)
 
-    score = 0
+    buy_score = 0
+    sell_score = 0
+
     checks = {}
 
-    # ============================
-    # EMA TREND (20)
-    # ============================
+    # =====================================
+    # EMA TREND
+    # =====================================
 
-    ema20 = df["ema20"].iloc[-1]
-    ema50 = df["ema50"].iloc[-1]
-    ema200 = df["ema200"].iloc[-1]
+    ema20 = float(df["ema20"].iloc[-1])
+    ema50 = float(df["ema50"].iloc[-1])
+    ema200 = float(df["ema200"].iloc[-1])
 
     trend = "NEUTRAL"
 
     if ema20 > ema50 > ema200:
+
         trend = "BULLISH"
-        score += 20
+
+        buy_score += 20
 
     elif ema20 < ema50 < ema200:
+
         trend = "BEARISH"
-        score += 20
+
+        sell_score += 20
 
     checks["Trend"] = trend
 
-    # ============================
-    # BOS (20)
-    # ============================
+    # =====================================
+    # BOS
+    # =====================================
 
-    if smc["bos"] != "NONE":
-        score += 20
+    bos = smc["bos"]
 
-    checks["BOS"] = smc["bos"]
+    if bos == "BULLISH":
+        buy_score += 20
 
-    # ============================
-    # CHOCH (15)
-    # ============================
+    elif bos == "BEARISH":
+        sell_score += 20
 
-    if smc["choch"] != "NONE":
-        score += 15
+    checks["BOS"] = bos
 
-    checks["CHOCH"] = smc["choch"]
+    # =====================================
+    # CHOCH
+    # =====================================
 
-    # ============================
-    # FAIR VALUE GAP (10)
-    # ============================
+    choch = smc["choch"]
 
-    if smc["fvg"]:
-        score += 10
+    if choch == "BULLISH":
+        buy_score += 15
 
-    checks["FVG"] = "YES" if smc["fvg"] else "NO"
+    elif choch == "BEARISH":
+        sell_score += 15
 
-    # ============================
-    # ORDER BLOCK (10)
-    # ============================
+    checks["CHOCH"] = choch
 
-    order_block = smc.get("order_block", {"type": "None", "level": 0, "direction": "N/A"})
-    ob_direction = order_block.get("direction", "N/A")
-    ob_found = order_block.get("type", "None") != "None"
+    # =====================================
+    # ORDER BLOCK
+    # =====================================
 
-    if ob_found and (
-        (trend == "BULLISH" and ob_direction == "BUY") or
-        (trend == "BEARISH" and ob_direction == "SELL")
-    ):
-        score += 10
+    ob = smc["order_block"]
 
-    checks["Order Block"] = order_block.get("type", "None")
+    if ob["direction"] == "BUY":
 
-    # ============================
-    # PREMIUM / DISCOUNT (10)
-    # ============================
+        buy_score += 15
+
+    elif ob["direction"] == "SELL":
+
+        sell_score += 15
+
+    checks["Order Block"] = ob["type"]
+
+    # =====================================
+    # PREMIUM / DISCOUNT
+    # =====================================
 
     zone = smc["zone"]
 
+    if zone == "DISCOUNT":
+
+        buy_score += 10
+
+    elif zone == "PREMIUM":
+
+        sell_score += 10
+
     checks["Zone"] = zone
 
-    if trend == "BULLISH" and zone == "DISCOUNT":
-        score += 10
+    # =====================================
+    # FAIR VALUE GAP
+    # =====================================
 
-    elif trend == "BEARISH" and zone == "PREMIUM":
-        score += 10
+    if smc["fvg"]:
 
-    # ============================
-    # RSI (5 points for healthy range, PLUS a hard veto)
-    # ============================
+        if trend == "BULLISH":
+            buy_score += 10
 
-    rsi = df["rsi"].iloc[-1]
+        elif trend == "BEARISH":
+            sell_score += 10
 
-    if 40 <= rsi <= 65:
-        score += 5
+    checks["FVG"] = "YES" if smc["fvg"] else "NO"
+
+    # =====================================
+    # RSI
+    # =====================================
+
+    rsi = float(df["rsi"].iloc[-1])
 
     checks["RSI"] = round(rsi, 2)
 
-    # ============================
-    # ATR (5)
-    # ============================
+    if 45 <= rsi <= 65:
+        buy_score += 5
 
-    atr = df["atr"].iloc[-1]
+    if 35 <= rsi <= 55:
+        sell_score += 5
+
+    # =====================================
+    # ATR
+    # =====================================
+
+    atr = float(df["atr"].iloc[-1])
 
     if atr > 0:
-        score += 5
+
+        buy_score += 5
+
+        sell_score += 5
 
     checks["ATR"] = round(atr, 2)
 
-    # ============================
-    # SESSION (5)
-    # ============================
+    # =====================================
+    # SESSION
+    # =====================================
 
-    session = get_current_session(symbol=symbol)
-    score += session_score(session)
+    session = get_current_session(symbol)
+
+    points = session_points(session)
+
+    buy_score += points
+    sell_score += points
 
     checks["Session"] = session
+        # =====================================
+    # LIQUIDITY BONUS
+    # =====================================
 
-    # ============================
-    # DIRECTION (before RSI veto, so we know which side to check)
-    # ============================
+    liquidity = smc.get("liquidity", "NEUTRAL")
 
-    if trend == "BULLISH":
+    checks["Liquidity"] = liquidity
+
+    if liquidity == "EQUAL LOWS":
+        buy_score += 5
+
+    elif liquidity == "EQUAL HIGHS":
+        sell_score += 5
+
+    # =====================================
+    # RSI HARD VETO
+    # =====================================
+
+    buy_veto = rsi >= RSI_OVERBOUGHT
+    sell_veto = rsi <= RSI_OVERSOLD
+
+    checks["RSI Veto"] = "YES" if (buy_veto or sell_veto) else "NO"
+
+    if buy_veto:
+        buy_score = 0
+
+    if sell_veto:
+        sell_score = 0
+
+    # =====================================
+    # FINAL DECISION
+    # =====================================
+
+    score_gap = abs(buy_score - sell_score)
+
+    if (
+        buy_score >= BUY_THRESHOLD
+        and buy_score > sell_score
+        and score_gap >= MIN_SCORE_GAP
+    ):
+
         direction = "BUY"
+        confidence = buy_score
 
-    elif trend == "BEARISH":
+    elif (
+        sell_score >= SELL_THRESHOLD
+        and sell_score > buy_score
+        and score_gap >= MIN_SCORE_GAP
+    ):
+
         direction = "SELL"
+        confidence = sell_score
 
     else:
+
         direction = "NO TRADE"
+        confidence = max(buy_score, sell_score)
 
-    # ============================
-    # RSI HARD VETO — overrides everything above.
-    # A BUY setup with RSI already overbought, or a SELL setup
-    # with RSI already oversold, gets killed outright rather
-    # than just scored lower. This stops the engine from
-    # chasing an already-extended move.
-    # ============================
+    # =====================================
+    # SIGNAL STRENGTH
+    # =====================================
 
-    rsi_veto = False
+    if direction == "BUY":
 
-    if direction == "BUY" and rsi > RSI_OVERBOUGHT_VETO:
-        rsi_veto = True
-    elif direction == "SELL" and rsi < RSI_OVERSOLD_VETO:
-        rsi_veto = True
+        if confidence >= 95:
+            signal = "⭐⭐⭐⭐⭐ STRONG BUY"
 
-    checks["RSI Veto"] = "YES" if rsi_veto else "NO"
-
-    if rsi_veto:
-        direction = "NO TRADE"
-        signal = "NO TRADE"
-
-    else:
-        if score >= 90:
-            signal = f"⭐⭐⭐⭐⭐ STRONG {direction}"
-
-        elif score >= 75:
-            signal = f"⭐⭐⭐⭐ {direction}"
-
-        elif score >= 60:
-            signal = f"⭐⭐⭐ WATCH {direction}"
+        elif confidence >= 85:
+            signal = "⭐⭐⭐⭐ BUY"
 
         else:
-            direction = "NO TRADE"
-            signal = "NO TRADE"
+            signal = "⭐⭐⭐ WATCH BUY"
+
+    elif direction == "SELL":
+
+        if confidence >= 95:
+            signal = "⭐⭐⭐⭐⭐ STRONG SELL"
+
+        elif confidence >= 85:
+            signal = "⭐⭐⭐⭐ SELL"
+
+        else:
+            signal = "⭐⭐⭐ WATCH SELL"
+
+    else:
+
+        signal = "NO TRADE"
+
+    # =====================================
+    # TRADE GRADE
+    # =====================================
+
+    if confidence >= 95:
+        grade = "A+"
+
+    elif confidence >= 90:
+        grade = "A"
+
+    elif confidence >= 80:
+        grade = "B"
+
+    elif confidence >= 70:
+        grade = "C"
+
+    else:
+        grade = "D"
+
+    checks["Grade"] = grade
+
+    # =====================================
+    # RETURN
+    # =====================================
 
     return {
+
         "signal": signal,
-        "confidence": score,
-        "rating": score,
+
         "direction": direction,
+
+        "confidence": confidence,
+
+        "rating": round(confidence / 20, 1),
+
+        "buy_score": buy_score,
+
+        "sell_score": sell_score,
+
         "checks": checks
+
     }
