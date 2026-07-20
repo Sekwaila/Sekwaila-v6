@@ -79,7 +79,7 @@ if direction not in ["BUY", "SELL"]:
                 key = f"{symbol}_{timeframe}"
 
                 # Only send if the signal changed
-                if last_signals.get(key) != signal:
+                if last_signals.get(key) != direction:
 
                     message = f"""
 🚨 *NEW AI TRADE SIGNAL*
@@ -97,7 +97,7 @@ if direction not in ["BUY", "SELL"]:
                     if send_telegram_alert(message):
                         print(f"✅ Alert sent: {symbol} {timeframe} {signal}")
 
-                    last_signals[key] = signal
+                    last_signals[key] = direction
 
             except Exception as e:
                 print(f"{symbol} {timeframe}: {e}")
