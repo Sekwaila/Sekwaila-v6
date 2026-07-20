@@ -1,3 +1,4 @@
+import os
 import time
 import requests
 from brain import analyze_market
@@ -5,29 +6,42 @@ from brain import analyze_market
 # =========================================
 # TELEGRAM
 # =========================================
-def send_telegram_alert(message):
-    try:
-        token = "8739054815:AAGCIGmES43JxGuF4TfBotPRSD-EOxA6SCM"
-        chat_id = "5870791602"
 
-        url = f"https://api.telegram.org/bot{token}/sendMessage"
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+CHAT_ID = os.getenv("CHAT_ID")
+
+
+def send_telegram_alert(message):
+    if not TELEGRAM_TOKEN or not CHAT_ID:
+        print("❌ TELEGRAM_TOKEN or CHAT_ID missing")
+        return False
+
+    try:
+        url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
 
         payload = {
-            "chat_id": chat_id,
+            "chat_id": CHAT_ID,
             "text": message,
             "parse_mode": "Markdown"
         }
 
-        r = requests.post(url, json=payload, timeout=5)
+        response = requests.post(url, json=payload, timeout=10)
 
-        return r.status_code == 200
+        if response.status_code == 200:
+            return True
+
+        print(response.text)
+        return False
 
     except Exception as e:
-        print(e)
+        print(f"Telegram Error: {e}")
         return False
-      # =========================================
+
+
+# =========================================
 # SETTINGS
 # =========================================
+
 SYMBOLS = [
     "XAUUSD",
     "EURUSD",
@@ -45,11 +59,17 @@ TIMEFRAMES = [
     "1h",
 ]
 
-CHECK_INTERVAL = 300  # 300 seconds = 5 minutes
+CHECK_INTERVAL = 300  # 5 minutes
 
+# Remember last BUY/SELL alert
 last_signals = {}
 
 print("🚀 SEKWAILA OMEGA X Bot Started")
+
+
+# =========================================
+# MAIN LOOP
+# =========================================
 
 while True:
 
@@ -58,18 +78,20 @@ while True:
         for timeframe in TIMEFRAMES:
 
             try:
+
                 result = analyze_market(symbol, timeframe)
 
-                if not result:
+                if result is None:
                     continue
 
-                signal = result.get("signal", "HOLD")
+                signal = result.get("signal", "NO TRADE")
                 direction = result.get("direction", "NO TRADE")
 
-# Skip anything that isn't a BUY or SELL
-if direction not in ["BUY", "SELL"]:
-    print(f"⏭️ {symbol} {timeframe}: NO TRADE")
-    continue
+                # Ignore NO TRADE completely
+                if direction not in ["BUY", "SELL"]:
+                    print(f"⏭️ {symbol} {timeframe}: NO TRADE")
+                    continue
+
                 confidence = result.get("confidence", 0)
                 rating = result.get("rating", 0)
                 entry = result.get("entry", "--")
@@ -78,29 +100,34 @@ if direction not in ["BUY", "SELL"]:
 
                 key = f"{symbol}_{timeframe}"
 
-                # Only send if the signal changed
-                if last_signals.get(key) != direction:
+                # Send only when direction changes
+                if last_signals.get(key) == direction:
+                    print(f"⏭️ {symbol} {timeframe}: Duplicate {direction}")
+                    continue
 
-                    message = f"""
-🚨 *NEW AI TRADE SIGNAL*
+                message = f"""
+🚨 *SEKWAILA OMEGA X*
 
-*Symbol:* {symbol}
-*Timeframe:* {timeframe}
-*Signal:* {signal}
-*Confidence:* {confidence}%
-*Rating:* {rating}
-*Entry:* {entry}
-*Stop Loss:* {sl}
-*Take Profit:* {tp}
+📈 *{symbol}*
+⏰ *{timeframe}*
+
+📊 Signal: *{signal}*
+🎯 Confidence: *{confidence}%*
+⭐ Rating: *{rating}/5*
+
+💰 Entry: `{entry}`
+🛑 Stop Loss: `{sl}`
+🎯 Take Profit: `{tp}`
 """
 
-                    if send_telegram_alert(message):
-                        print(f"✅ Alert sent: {symbol} {timeframe} {signal}")
-
+                if send_telegram_alert(message):
+                    print(f"✅ Alert sent: {symbol} {timeframe} {direction}")
                     last_signals[key] = direction
+                else:
+                    print(f"❌ Failed sending {symbol}")
 
             except Exception as e:
-                print(f"{symbol} {timeframe}: {e}")
+                print(f"❌ {symbol} {timeframe}: {e}")
 
-    print("⏳ Waiting 5 minutes...")
+    print(f"\n⏳ Waiting {CHECK_INTERVAL//60} minutes...\n")
     time.sleep(CHECK_INTERVAL)
