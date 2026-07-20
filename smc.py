@@ -121,11 +121,26 @@ def detect_liquidity(swing_highs, swing_lows, tolerance=0.001):
 
     return "NEUTRAL"
 
+
+# ========================
+# FAIR VALUE GAP
+# ========================
+
+def detect_fvg(df, lookback=10):
+    """
+    Three-candle Fair Value Gap: a bullish FVG exists when
+    candle[i]'s low is above candle[i-2]'s high (a gap up that
+    price hasn't filled); bearish FVG is the mirror case.
+    """
+    if len(df) < 3:
+        return False
+
     recent = df.tail(lookback).reset_index(drop=True)
 
     for i in range(2, len(recent)):
         if recent["low"].iloc[i] > recent["high"].iloc[i - 2]:
             return True
+
         if recent["high"].iloc[i] < recent["low"].iloc[i - 2]:
             return True
 
