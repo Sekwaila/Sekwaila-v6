@@ -1,82 +1,253 @@
 """
-=========================================
+====================================================
 SEKWAILA OMEGA X
 Indicators Engine
-Version: 3.0
-=========================================
+Version: 4.0
+Part 1/2
+====================================================
 """
 
 import pandas as pd
 
 
-# ---------------------------------------
-# EMA
-# ---------------------------------------
+# ====================================================
+# REQUIRED OHLC COLUMNS
+# ====================================================
+
+REQUIRED_COLUMNS = [
+    "open",
+    "high",
+    "low",
+    "close"
+]
+
+
+# ====================================================
+# VALIDATE DATAFRAME
+# ====================================================
+
+def validate_dataframe(df):
+
+    if df is None:
+        raise ValueError("Dataframe is None.")
+
+    if df.empty:
+        raise ValueError("Dataframe is empty.")
+
+    for column in REQUIRED_COLUMNS:
+
+        if column not in df.columns:
+
+            raise ValueError(
+                f"Missing required column: {column}"
+            )
+
+    return True
+
+
+# ====================================================
+# EXPONENTIAL MOVING AVERAGE
+# ====================================================
 
 def ema(series, period):
-    return series.ewm(span=period, adjust=False).mean()
+
+    return series.ewm(
+        span=period,
+        adjust=False
+    ).mean()
 
 
-# ---------------------------------------
-# RSI
-# ---------------------------------------
+# ====================================================
+# WILDER RSI
+# ====================================================
 
 def rsi(series, period=14):
 
     delta = series.diff()
 
-    gain = delta.clip(lower=0)
+    gain = delta.where(
+        delta > 0,
+        0.0
+    )
 
-    loss = -delta.clip(upper=0)
-
-    avg_gain = gain.rolling(period).mean()
-
-    avg_loss = loss.rolling(period).mean()
-
-    rs = avg_gain / avg_loss
-
-    return 100 - (100 / (1 + rs))
+    loss = -delta.where(
+        delta < 0,
+        0.0
+    )
 
 
-# ---------------------------------------
-# ATR
-# ---------------------------------------
+    average_gain = gain.ewm(
+        alpha=1/period,
+        adjust=False
+    ).mean()
+
+
+    average_loss = loss.ewm(
+        alpha=1/period,
+        adjust=False
+    ).mean()
+
+
+    rs = average_gain / average_loss
+
+
+    rsi = 100 - (
+
+        100 /
+
+        (1 + rs)
+
+    )
+
+
+    return rsi
+
+
+# ====================================================
+# TRUE RANGE
+# ====================================================
+
+def true_range(df):
+
+    high_low = (
+
+        df["high"]
+
+        -
+
+        df["low"]
+
+    )
+
+
+    high_close = (
+
+        df["high"]
+
+        -
+
+        df["close"].shift()
+
+    ).abs()
+
+
+    low_close = (
+
+        df["low"]
+
+        -
+
+        df["close"].shift()
+
+    ).abs()
+
+
+    tr = pd.concat(
+
+        [
+
+            high_low,
+
+            high_close,
+
+            low_close
+
+        ],
+
+        axis=1
+
+    ).max(axis=1)
+
+
+    return tr
+    # ====================================================
+# AVERAGE TRUE RANGE (WILDER)
+# ====================================================
 
 def atr(df, period=14):
 
-    high_low = df["high"] - df["low"]
+    tr = true_range(df)
 
-    high_close = (df["high"] - df["close"].shift()).abs()
+    atr = tr.ewm(
+        alpha=1 / period,
+        adjust=False
+    ).mean()
 
-    low_close = (df["low"] - df["close"].shift()).abs()
-
-    tr = pd.concat(
-        [high_low, high_close, low_close],
-        axis=1
-    ).max(axis=1)
-
-    return tr.rolling(period).mean()
+    return atr
 
 
-# ---------------------------------------
-# ADD INDICATORS
-# ---------------------------------------
+# ====================================================
+# CALCULATE ALL INDICATORS
+# ====================================================
 
 def calculate_indicators(df):
 
-    if df.empty:
-        return df
+    validate_dataframe(df)
 
     df = df.copy()
 
-    df["ema20"] = ema(df["close"], 20)
+    # ===============================================
+    # EMA
+    # ===============================================
 
-    df["ema50"] = ema(df["close"], 50)
+    df["ema20"] = ema(
+        df["close"],
+        20
+    )
 
-    df["ema200"] = ema(df["close"], 200)
+    df["ema50"] = ema(
+        df["close"],
+        50
+    )
 
-    df["rsi"] = rsi(df["close"])
+    df["ema200"] = ema(
+        df["close"],
+        200
+    )
 
-    df["atr"] = atr(df)
+    # ===============================================
+    # RSI
+    # ===============================================
+
+    df["rsi"] = rsi(
+        df["close"],
+        14
+    )
+
+    # ===============================================
+    # ATR
+    # ===============================================
+
+    df["atr"] = atr(
+        df,
+        14
+    )
+
+    # ===============================================
+    # CLEAN DATA
+    # ===============================================
+
+    df = df.dropna()
+
+    df = df.reset_index(
+        drop=True
+    )
 
     return df
+
+
+# ====================================================
+# EXPORT
+# ====================================================
+
+__all__ = [
+
+    "ema",
+
+    "rsi",
+
+    "atr",
+
+    "calculate_indicators"
+
+            ]
