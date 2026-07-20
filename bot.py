@@ -64,6 +64,12 @@ while True:
                     continue
 
                 signal = result.get("signal", "HOLD")
+                direction = result.get("direction", "NO TRADE")
+
+# Skip anything that isn't a BUY or SELL
+if direction not in ["BUY", "SELL"]:
+    print(f"⏭️ {symbol} {timeframe}: NO TRADE")
+    continue
                 confidence = result.get("confidence", 0)
                 rating = result.get("rating", 0)
                 entry = result.get("entry", "--")
