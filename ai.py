@@ -134,9 +134,9 @@ def ai_confidence(df, symbol=None):
 
         "take_profit": take_profit,
 
-        "buy_score": score if direction == "BUY" else 0,
+        "buy_score": signal.get("buy_score", 0),
 
-        "sell_score": score if direction == "SELL" else 0,
+"sell_score": signal.get("sell_score", 0),
 
         "checks": checks,
 
