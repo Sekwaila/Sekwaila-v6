@@ -103,102 +103,23 @@ def detect_choch(df, swing_highs, swing_lows):
 
 def detect_liquidity(swing_highs, swing_lows, tolerance=0.001):
     """
-    Flags equal highs/lows (within tolerance) as resting liquidity
-    pools — a common SMC target for stop hunts.
+    Detect equal highs/lows as liquidity pools.
     """
     if len(swing_highs) >= 2:
         h1 = swing_highs[-1][1]
         h2 = swing_highs[-2][1]
-        if h2 != 0 and abs(h1 - h2) / h2 < tolerance:
+
+        if abs(h1 - h2) <= h2 * tolerance:
             return "EQUAL HIGHS"
 
     if len(swing_lows) >= 2:
         l1 = swing_lows[-1][1]
         l2 = swing_lows[-2][1]
-        if l2 != 0 and abs(l1 - l2) / l2 < tolerance:
+
+        if abs(l1 - l2) <= l2 * tolerance:
             return "EQUAL LOWS"
 
     return "NEUTRAL"
-
-
-# ========================
-# PREMIUM / DISCOUNT ZONE
-# ========================
-
-def detect_zone(df, swing_highs, swing_lows):
-    """
-    Discount/Premium via the Fibonacci midpoint (50%) between the
-    most recent swing high and swing low.
-    """
-    if not swing_highs or not swing_lows:
-        return "NEUTRAL"
-
-    recent_high = swing_highs[-1][1]
-    recent_low = swing_lows[-1][1]
-    midpoint = (recent_high + recent_low) / 2
-    last_close = float(df["close"].iloc[-1])
-
-    if last_close < midpoint:
-        return "DISCOUNT"
-    elif last_close > midpoint:
-        return "PREMIUM"
-
-    return "NEUTRAL"
-
-
-# ========================
-# ORDER BLOCK (simplified)
-# ========================
-
-def detect_order_block(df):
-    """
-    Simplified order block: the last opposite-colored candle
-    immediately before a strong impulsive move that closes
-    beyond it. Bullish OB = last down-candle before an up-move
-    that breaks its high; bearish OB = mirror case.
-    """
-    if len(df) < 2:
-        return {"type": "None", "level": 0, "direction": "N/A"}
-
-    last = df.iloc[-1]
-    prev = df.iloc[-2]
-
-    bullish_impulse = last["close"] > last["open"] and last["close"] > prev["high"]
-    prev_was_down = prev["close"] < prev["open"]
-
-    bearish_impulse = last["close"] < last["open"] and last["close"] < prev["low"]
-    prev_was_up = prev["close"] > prev["open"]
-
-    if prev_was_down and bullish_impulse:
-        return {
-            "type": "Bullish OB",
-            "level": round(float(prev["low"]), 2),
-            "direction": "BUY",
-        }
-
-    if prev_was_up and bearish_impulse:
-        return {
-            "type": "Bearish OB",
-            "level": round(float(prev["high"]), 2),
-            "direction": "SELL",
-        }
-
-    return {"type": "None", "level": 0, "direction": "N/A"}
-
-
-# ========================
-# FAIR VALUE GAP
-# ========================
-
-def detect_fvg(df, lookback=10):
-    """
-    Three-candle Fair Value Gap: a bullish FVG exists when
-    candle[i]'s low is above candle[i-2]'s high (a gap up that
-    price hasn't filled); bearish FVG is the mirror case.
-    Checks the most recent `lookback` candles.
-    """
-    if len(df) < 3:
-        return False
 
     recent = df.tail(lookback).reset_index(drop=True)
 
