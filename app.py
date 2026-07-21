@@ -6,17 +6,23 @@ from brain import analyze_market
 # TELEGRAM (HARDCODED – NO SECRETS)
 # =========================================
 def send_telegram_alert(message):
+    token = "8739054815:AAGCIGmES43JxGuF4TfBotPRSD-EOxA6SCM"
+    chat_id = "5870791602"
+
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+
+    payload = {
+        "chat_id": chat_id,
+        "text": message,
+        "parse_mode": "Markdown"
+    }
+
     try:
-        token = "8739054815:AAGCIGmES43JxGuF4TfBotPRSD-EOxA6SCM"
-        chat_id = "5870791602"
-        url = f"https://api.telegram.org/bot{token}/sendMessage"
-        payload = {"chat_id": chat_id, "text": message, "parse_mode": "Markdown"}
         r = requests.post(url, json=payload, timeout=5)
         return r.status_code == 200
     except Exception as e:
         st.warning(f"Telegram error: {e}")
         return False
-
 # =========================================
 # RATING TO STARS – HANDLES ANYTHING
 # =========================================
