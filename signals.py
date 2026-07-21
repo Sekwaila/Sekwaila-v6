@@ -8,7 +8,7 @@ Part 1/2
 """
 
 from datetime import datetime, timezone
-from smc_engine import analyze_smc
+from smc import analyze_smc
 
 
 # =====================================================
